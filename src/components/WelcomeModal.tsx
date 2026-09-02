@@ -5,14 +5,16 @@ import { Sparkles, LogOut } from 'lucide-react';
 
 export const WelcomeModal: React.FC = () => {
   const { isLoggingOut, logoutMsg, data } = useShop();
-  const [showWelcome, setShowWelcome] = useState(false);
   const s = data.settings;
+  const [showWelcome, setShowWelcome] = useState(() => s.showWelcomeScreen !== false);
 
   useEffect(() => {
     if (s.showWelcomeScreen !== false && !isLoggingOut) {
       setShowWelcome(true);
-      const timer = setTimeout(() => setShowWelcome(false), (s.welcomeDuration || 3) * 1000);
+      const timer = setTimeout(() => setShowWelcome(false), (s.welcomeDuration || 4) * 1000);
       return () => clearTimeout(timer);
+    } else {
+      setShowWelcome(false);
     }
   }, [s.showWelcomeScreen, s.welcomeDuration, isLoggingOut]);
 
