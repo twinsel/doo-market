@@ -61,11 +61,8 @@ const LoadingFallback: React.FC = () => (
 );
 
 const AppContent: React.FC = () => {
-  const { isAuthenticated } = useShop();
-
   return (
     <HashRouter>
-      {!isAuthenticated && <AppAuthGate />}
       <ScrollToTop />
       <WelcomeModal />
       <Suspense fallback={<LoadingFallback />}>

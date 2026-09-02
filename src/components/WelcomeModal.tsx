@@ -9,11 +9,9 @@ export const WelcomeModal: React.FC = () => {
   const s = data.settings;
 
   useEffect(() => {
-    const hasSeen = sessionStorage.getItem('doo_welcome_seen');
-    if (s.showWelcomeScreen !== false && !hasSeen && !isLoggingOut) {
+    if (s.showWelcomeScreen !== false && !isLoggingOut) {
       setShowWelcome(true);
-      sessionStorage.setItem('doo_welcome_seen', 'true');
-      const timer = setTimeout(() => setShowWelcome(false), (s.welcomeDuration || 4) * 1000);
+      const timer = setTimeout(() => setShowWelcome(false), (s.welcomeDuration || 3) * 1000);
       return () => clearTimeout(timer);
     }
   }, [s.showWelcomeScreen, s.welcomeDuration, isLoggingOut]);
@@ -76,7 +74,8 @@ export const WelcomeModal: React.FC = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white p-6 text-center"
+          onClick={() => setShowWelcome(false)}
+          className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white p-6 text-center cursor-pointer select-none"
         >
           <motion.div
             initial={{ y: -50, opacity: 0 }}
