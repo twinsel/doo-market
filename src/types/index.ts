@@ -166,6 +166,10 @@ export interface User {
   email: string;
   phone: string;
   role: 'buyer' | 'admin';
+  joinedAt?: string;
+  cart?: any[];
+  wishlist?: any[];
+  avatar?: string;
 }
 
 export interface Review {

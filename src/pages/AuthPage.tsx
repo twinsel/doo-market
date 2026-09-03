@@ -310,19 +310,19 @@ export const AuthPage: React.FC = () => {
 
       {/* ---------- Main Card ---------- */}
       <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
         className="relative w-full max-w-md overflow-hidden rounded-[2.5rem] border border-white/10 bg-slate-900/80 p-6 sm:p-8 shadow-2xl backdrop-blur-2xl"
       >
         {/* ----- Success Overlay ----- */}
         <AnimatePresence>
           {showSuccess && (
             <motion.div
-              variants={successVariants}
-              initial="hidden"
-              animate="visible"
-              exit="hidden"
+              initial={{ opacity: 0, scale: 0.8, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 20 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
               className="absolute inset-0 z-50 flex flex-col items-center justify-center rounded-[2.5rem] bg-slate-900/95 backdrop-blur-xl p-8 text-center"
             >
               <motion.div
@@ -414,10 +414,10 @@ export const AuthPage: React.FC = () => {
           {activeTab === 'login' ? (
             <motion.form
               key="login-form"
-              variants={formVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -30 }}
+              transition={{ duration: 0.3 }}
               onSubmit={handleLogin}
               className="mt-6 space-y-4"
             >
@@ -491,10 +491,10 @@ export const AuthPage: React.FC = () => {
           ) : (
             <motion.form
               key="register-form"
-              variants={formVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -30 }}
+              transition={{ duration: 0.3 }}
               onSubmit={handleRegister}
               className="mt-6 space-y-4"
             >
