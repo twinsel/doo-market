@@ -526,11 +526,11 @@ export const AuthPage: React.FC = () => {
             <span>الدخول بحساب Google</span>
           </button>
 
-          {/* Guest Browsing Button */}
+          {/* Guest Browsing Button (Mobile Only) */}
           <button
             type="button"
             onClick={handleGuestEntry}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white/50 py-3.5 text-xs font-bold text-slate-600 hover:bg-slate-100/80 hover:border-slate-400 transition-all active:scale-[0.98]"
+            className="flex lg:hidden w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white/50 py-3.5 text-xs font-bold text-slate-600 hover:bg-slate-100/80 hover:border-slate-400 transition-all active:scale-[0.98]"
           >
             <Sparkles size={16} className="text-amber-500" />
             <span>الدخول كزائر</span>
@@ -584,14 +584,24 @@ export const AuthPage: React.FC = () => {
         <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-white/10 blur-3xl pointer-events-none" />
         <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl pointer-events-none" />
 
-        {/* Top Branding Badge */}
-        <div className="relative z-10 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/20">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-orange-600 shadow-md">
+        {/* Top Branding Badge & Guest Button */}
+        <div className="relative z-10 flex flex-col items-start gap-3">
+          <Link to="/" className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/20 w-full">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-orange-600 shadow-md shrink-0">
               <ShoppingBag size={18} />
             </div>
             <span className="text-base font-black tracking-tight text-white">{data.settings.siteName || 'دُو ماركت'}</span>
           </Link>
+
+          {/* Guest Entry Button under Doo Market */}
+          <button
+            type="button"
+            onClick={handleGuestEntry}
+            className="flex items-center justify-center gap-2 rounded-2xl border border-white/30 bg-white/20 hover:bg-white hover:text-orange-600 backdrop-blur-md py-2.5 px-3 text-xs font-black text-white transition-all duration-300 active:scale-95 shadow-md w-full group"
+          >
+            <Sparkles size={15} className="text-amber-300 group-hover:text-orange-600 transition-colors" />
+            <span>الدخول كزائر</span>
+          </button>
         </div>
 
         {/* Middle Feature Highlights */}
