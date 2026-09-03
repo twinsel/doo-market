@@ -7,6 +7,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { ShopData, Product, CartItem, Order, User, Review, Category, Banner, Section, StoreSettings } from '../types';
 import { initialShopData } from '../data/initialData';
+import {
+  syncOrderToSupabase,
+  fetchOrdersFromSupabase,
+  syncUserToSupabase,
+  fetchUsersFromSupabase,
+  deleteUserFromSupabase
+} from '../services/supabaseService';
 
 const STORAGE_SHOP_DATA = 'doo_shop_data_v6';
 const STORAGE_CART = 'doo_cart_v6';
@@ -108,7 +115,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
-  // Clear legacy cached data keys on mount
+  // Clear legacy cached data keys on mount and fetch Supabase real-time data
   useEffect(() => {
     try {
       [
@@ -119,6 +126,18 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         'doo_wishlist_v1', 'doo_wishlist_v2', 'doo_wishlist_v3', 'doo_wishlist_v4', 'doo_wishlist_v5'
       ].forEach(k => localStorage.removeItem(k));
     } catch {}
+
+    fetchOrdersFromSupabase().then(dbOrders => {
+      if (dbOrders) {
+        setData(prev => ({ ...prev, orders: dbOrders }));
+      }
+    });
+
+    fetchUsersFromSupabase().then(dbUsers => {
+      if (dbUsers) {
+        setRegisteredUsers(dbUsers);
+      }
+    });
   }, []);
 
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -545,6 +564,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
     }));
 
+    syncOrderToSupabase(newOrder);
+
     clearCart();
     return { ok: true, orderId };
   }, [cart, cartTotal, data.products, data.settings.freeShippingMin, clearCart]);
@@ -600,6 +621,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return [newUser, ...prev];
     });
+
+    syncUserToSupabase(newUser);
   }, []);
 
   const logout = useCallback(() => {
@@ -613,6 +636,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const deleteUser = useCallback((userIdentifier: string) => {
     if (!userIdentifier) return;
+
+    deleteUserFromSupabase(userIdentifier);
 
     const targetUser = registeredUsers.find(u =>
       u.id === userIdentifier || u.email === userIdentifier || u.phone === userIdentifier
