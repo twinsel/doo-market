@@ -145,7 +145,7 @@ export const AuthPage: React.FC = () => {
 
   const handleGuestEntry = async () => {
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 400));
+    await new Promise(resolve => setTimeout(resolve, 300));
     login({
       id: 'guest-' + Date.now(),
       name: 'زائر المتجر',
@@ -154,7 +154,7 @@ export const AuthPage: React.FC = () => {
       role: 'buyer'
     });
     setIsLoading(false);
-    navigate('/');
+    navigate('/home');
   };
 
   return (
