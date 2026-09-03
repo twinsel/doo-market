@@ -33,7 +33,7 @@ interface ShopContextType {
   cartCount: number;
   cartTotal: number;
   wishlistCount: number;
-  addToCart: (productId: string, quantity?: number, selectedColor?: string, selectedSize?: string) => { ok: boolean; error?: string };
+  addToCart: (productId: string, quantity?: number, selectedColor?: string, selectedSize?: string) => { ok: boolean; isGuest?: boolean; error?: string };
   removeFromCart: (productId: string, selectedColor?: string, selectedSize?: string) => void;
   updateCartQuantity: (productId: string, quantity: number, selectedColor?: string, selectedSize?: string) => { ok: boolean; error?: string };
   clearCart: () => void;
@@ -267,6 +267,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const wishlistCount = wishlist.length;
 
   const addToCart = useCallback((productId: string, quantity = 1, selectedColor?: string, selectedSize?: string) => {
+    const isGuest = !currentUser || currentUser.id.startsWith('guest-');
+    if (isGuest) {
+      return { ok: false, isGuest: true, error: 'يلزم تسجيل الدخول لإضافة المنتجات والشراء' };
+    }
+
     const product = data.products.find(p => String(p.id) === String(productId));
     if (!product) return { ok: false, error: 'المنتج غير موجود' };
 

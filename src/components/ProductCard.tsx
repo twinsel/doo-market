@@ -11,7 +11,7 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) => {
-  const { toggleWishlist, wishlist, data, cart, addToCart } = useShop();
+  const { toggleWishlist, wishlist, data, cart, addToCart, currentUser } = useShop();
   const [isFlying, setIsFlying] = useState(false);
   const navigate = useNavigate();
   const imgRef = useRef<HTMLImageElement>(null);
@@ -48,7 +48,12 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
       e.stopPropagation();
       if (isOutOfStock) return;
 
-      // المنطق الجديد: إذا كان للمنتج مقاسات أو ألوان، نفتح صفحة المنتج بدلاً من الإضافة المباشرة
+      const isGuest = !currentUser || currentUser.id?.startsWith('guest-');
+      if (isGuest) {
+        navigate('/auth');
+        return;
+      }
+
       if (product.hasVariants) {
         navigate(`/product/${product.id}`);
         return;
@@ -56,10 +61,16 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product }) 
 
       setIsFlying(true);
       const res = addToCart(product.id, 1);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) {
+        if (res.isGuest) {
+          navigate('/auth');
+        } else if (res.error) {
+          alert(res.error);
+        }
+      }
       setTimeout(() => setIsFlying(false), 1300);
     },
-    [product.id, isOutOfStock, product.hasVariants, addToCart, navigate]
+    [product.id, isOutOfStock, product.hasVariants, addToCart, currentUser, navigate]
   );
 
   const handleRatingClick = useCallback(

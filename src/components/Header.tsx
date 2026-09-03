@@ -507,24 +507,6 @@ export const Header: React.FC = () => {
                   <User size={22} />
                 </Link>
               </>
-            ) : isGuest ? (
-              /* Guest Cart Icon Only */
-              <motion.div animate={cartControls}>
-                <Link
-                  to="/cart"
-                  id="cart-icon-target"
-                  className="relative block rounded-full p-2 text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition-all active:scale-90"
-                  aria-label="السلة"
-                  title="سلة التسوق"
-                >
-                  <ShoppingBag size={22} />
-                  {cartCount > 0 && (
-                    <span className="absolute -end-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-bold text-white shadow-sm">
-                      {cartCount}
-                    </span>
-                  )}
-                </Link>
-              </motion.div>
             ) : null}
 
             {/* Admin Portal Button */}
