@@ -581,7 +581,7 @@ export const AuthPage: React.FC = () => {
       {/* ============================================================ */}
       {/* RIGHT PANEL - FLOATING ORANGE BRANDING CARD */}
       {/* ============================================================ */}
-      <div className="hidden lg:flex lg:w-3/12 xl:w-3/12 min-w-[280px] bg-gradient-to-b from-orange-500 via-orange-600 to-amber-600 text-white p-6 sm:p-8 flex-col justify-between relative overflow-hidden shrink-0 shadow-2xl rounded-[2.5rem] my-4 ms-4 border border-orange-400/30">
+      <div className="hidden lg:flex lg:w-3/12 xl:w-3/12 min-w-[280px] bg-gradient-to-b from-orange-500 via-orange-600 to-amber-600 text-white p-6 sm:p-8 flex-col justify-between relative overflow-hidden shrink-0 shadow-2xl rounded-[2.5rem] my-5 ms-8 lg:ms-12 ml-8 lg:ml-12 border border-orange-400/30">
         {/* Background Decorative Glow Circle */}
         <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-white/10 blur-3xl pointer-events-none" />
         <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl pointer-events-none" />
