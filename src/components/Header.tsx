@@ -503,21 +503,15 @@ export const Header: React.FC = () => {
                 </Link>
               </>
             ) : (
-              /* Auth Buttons when not logged in */
-              <div className="flex items-center gap-1.5 ms-1">
-                <Link
-                  to="/auth"
-                  className="rounded-xl bg-slate-100 px-3.5 py-1.5 text-xs font-black text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
-                >
-                  تسجيل الدخول
-                </Link>
-                <Link
-                  to="/auth"
-                  className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 px-3.5 py-1.5 text-xs font-black text-white shadow-sm hover:opacity-95 transition-all"
-                >
-                  اشترك
-                </Link>
-              </div>
+              /* Simple Profile Icon when not logged in */
+              <Link
+                to="/auth"
+                className="relative block rounded-full p-2 text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition-all active:scale-90"
+                aria-label="حسابي"
+                title="تسجيل الدخول / إنشاء حساب"
+              >
+                <User size={22} />
+              </Link>
             )}
 
             {/* Admin Portal Button */}
