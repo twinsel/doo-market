@@ -592,7 +592,6 @@ export const AuthPage: React.FC = () => {
           </div>
           <div className="text-right">
             <h3 className="text-base font-black text-white leading-none">{data.settings.siteName || 'دُو ماركت'}</h3>
-            <p className="text-[10px] font-bold text-orange-100 mt-1 opacity-90">{data.settings.siteTagline || 'تسوق بذكاء · أسعار ولا أروع'}</p>
           </div>
         </div>
 
