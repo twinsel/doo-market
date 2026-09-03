@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { 
   Search, 
@@ -44,10 +44,12 @@ export const BrandLogoBadge: React.FC<{ size?: 'sm' | 'md' | 'lg'; className?: s
 
 export const Header: React.FC = () => {
   const { cartCount, data, searchProducts, isAuthenticated, currentUser } = useShop();
+  const location = useLocation();
 
   const isGuest = currentUser?.id?.startsWith('guest-') || false;
   const isRealMember = isAuthenticated && !isGuest;
   const isAdmin = isRealMember && (currentUser?.role === 'admin' || currentUser?.email?.includes('admin'));
+  const isAuthOrProfilePage = location.pathname === '/profile' || location.pathname === '/auth';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -507,8 +509,8 @@ export const Header: React.FC = () => {
                   <User size={22} />
                 </Link>
               </>
-            ) : isGuest ? (
-              /* Auth Buttons ONLY when browsing as Guest */
+            ) : isGuest && !isAuthOrProfilePage ? (
+              /* Auth Buttons ONLY when browsing store pages as Guest */
               <div className="flex items-center gap-1.5 ms-1">
                 <Link
                   to="/auth"
