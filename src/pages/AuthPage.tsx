@@ -30,7 +30,7 @@ import {
 
 export const AuthPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login, data, isAuthenticated } = useShop();
+  const { login, data, isAuthenticated, currentUser } = useShop();
 
   // ----- State -----
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
@@ -63,10 +63,11 @@ export const AuthPage: React.FC = () => {
 
   // ----- Effects -----
   useEffect(() => {
-    if (isAuthenticated) {
+    const isGuest = currentUser?.id?.startsWith('guest-') || false;
+    if (isAuthenticated && !isGuest) {
       navigate('/');
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, currentUser, navigate]);
 
   // ----- Handlers -----
   const handleLogin = async (e: React.FormEvent) => {

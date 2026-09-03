@@ -41,7 +41,9 @@ export const ProfilePage: React.FC = () => {
     navigate(`/track-order?code=${encodeURIComponent(searchCode.trim())}`);
   };
 
-  if (!isAuthenticated || !currentUser) {
+  const isGuest = currentUser?.id?.startsWith('guest-') || false;
+
+  if (!isAuthenticated || !currentUser || isGuest) {
     return (
       <div className="mx-auto max-w-md px-4 py-20 text-center" dir="rtl">
         <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-orange-50 text-orange-500">
