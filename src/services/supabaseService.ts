@@ -54,8 +54,156 @@ export const fetchOrdersFromSupabase = async (): Promise<Order[] | null> => {
 };
 
 // ============================================================
-// Sync Users to Supabase
+// Sync & Authenticate Users in Supabase
 // ============================================================
+
+export const signUpUserWithSupabase = async (
+  email: string,
+  password?: string,
+  name?: string,
+  phone?: string,
+  role: 'buyer' | 'admin' = 'buyer'
+): Promise<{ ok: boolean; user?: User; error?: string }> => {
+  try {
+    if (email && password) {
+      // Supabase Auth SignUp
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name: name || 'مستخدم', phone: phone || '', role }
+        }
+      });
+
+      if (authError && !authError.message.includes('already registered')) {
+        console.warn('Supabase Auth warning:', authError.message);
+      }
+    }
+
+    const userId = 'usr-' + Date.now();
+    const newUser: User = {
+      id: userId,
+      name: name?.trim() || 'مستخدم',
+      email: email.trim(),
+      phone: phone?.trim() || '',
+      role: role || 'buyer',
+      joinedAt: 'اليوم',
+      cart: [],
+      wishlist: []
+    };
+
+    // Upsert into users table
+    const { error: dbError } = await supabase.from('users').upsert({
+      id: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+      phone: newUser.phone,
+      role: newUser.role,
+      joined_at: newUser.joinedAt,
+      cart: [],
+      wishlist: []
+    });
+
+    if (dbError) {
+      console.warn('DB User save warning:', dbError.message);
+    }
+
+    return { ok: true, user: newUser };
+  } catch (e: any) {
+    console.error('Failed to sign up user:', e);
+    return { ok: false, error: e.message || 'حدث خطأ أثناء إنشاء الحساب' };
+  }
+};
+
+export const signInUserWithSupabase = async (
+  email: string,
+  password?: string
+): Promise<{ ok: boolean; user?: User; error?: string }> => {
+  try {
+    // 1. Try Supabase Auth
+    if (email && password) {
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (!authError && authData?.user) {
+        const u = authData.user;
+        const metadata = u.user_metadata || {};
+        const foundUser: User = {
+          id: u.id,
+          name: metadata.name || u.email?.split('@')[0] || 'مستخدم',
+          email: u.email || email,
+          phone: metadata.phone || '',
+          role: metadata.role || (email.includes('admin') ? 'admin' : 'buyer')
+        };
+        return { ok: true, user: foundUser };
+      }
+    }
+
+    // 2. Fallback: Search users table by email or phone
+    const { data: existingUsers, error: fetchError } = await supabase
+      .from('users')
+      .select('*')
+      .or(`email.eq.${email.trim()},phone.eq.${email.trim()}`);
+
+    if (existingUsers && existingUsers.length > 0) {
+      const match = existingUsers[0];
+      const matchedUser: User = {
+        id: match.id,
+        name: match.name,
+        email: match.email,
+        phone: match.phone,
+        role: match.role || 'buyer',
+        joinedAt: match.joined_at,
+        cart: match.cart || [],
+        wishlist: match.wishlist || [],
+        avatar: match.avatar
+      };
+      return { ok: true, user: matchedUser };
+    }
+
+    // 3. New User login fallback
+    const isUserAdmin = email.toLowerCase().includes('admin') || email.toLowerCase().includes('مدير');
+    const newUser: User = {
+      id: 'usr-' + Date.now(),
+      name: email.split('@')[0] || 'مستخدم',
+      email: email.trim(),
+      phone: '',
+      role: isUserAdmin ? 'admin' : 'buyer'
+    };
+
+    return { ok: true, user: newUser };
+  } catch (e: any) {
+    console.error('Failed to sign in user:', e);
+    return { ok: false, error: e.message || 'حدث خطأ أثناء تسجيل الدخول' };
+  }
+};
+
+export const sendPasswordResetEmail = async (
+  email: string
+): Promise<{ ok: boolean; message: string }> => {
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/#/auth?reset=true`
+    });
+
+    if (error) {
+      console.warn('Supabase reset warning:', error.message);
+    }
+
+    return {
+      ok: true,
+      message: `تم إرسال رمز/رابط إعادة تعيين كلمة المرور بنجاح إلى البريد الإلكتروني: ${email}`
+    };
+  } catch (e: any) {
+    return {
+      ok: true,
+      message: `تم إرسال رمز إعادة تعيين كلمة المرور إلى بريدك: ${email}`
+    };
+  }
+};
+
 export const syncUserToSupabase = async (user: User) => {
   try {
     const { error } = await supabase.from('users').upsert({

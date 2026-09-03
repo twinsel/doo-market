@@ -24,6 +24,11 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShop } from '../context/ShopContext';
+import {
+  signUpUserWithSupabase,
+  signInUserWithSupabase,
+  sendPasswordResetEmail
+} from '../services/supabaseService';
 
 // ============================================================
 // Sub-Components
@@ -148,6 +153,12 @@ export const AuthPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // Forgot Password
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
+  const [isResetLoading, setIsResetLoading] = useState(false);
+
   // ----- Effects -----
   useEffect(() => {
     if (isAuthenticated) {
@@ -161,28 +172,22 @@ export const AuthPage: React.FC = () => {
     setLoginError('');
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 600));
+    const result = await signInUserWithSupabase(loginEmail, loginPassword);
 
-    const isAdmin = loginEmail.toLowerCase().includes('admin') ||
-                    loginEmail.toLowerCase().includes('مدير');
-
-    login({
-      name: loginEmail.split('@')[0] || 'مستخدم',
-      email: loginEmail.trim(),
-      phone: '',
-      role: isAdmin ? 'admin' : 'buyer'
-    });
-
-    setIsLoading(false);
-    navigate('/');
+    if (result.ok && result.user) {
+      login(result.user);
+      setIsLoading(false);
+      navigate('/');
+    } else {
+      setLoginError(result.error || 'كلمة المرور أو البريد الإلكتروني غير صحيح');
+      setIsLoading(false);
+    }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegError('');
 
-    // Validation
     if (regPassword !== regConfirmPassword) {
       setRegError('كلمات المرور غير متطابقة');
       return;
@@ -199,24 +204,40 @@ export const AuthPage: React.FC = () => {
     }
 
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 800));
 
     const isAdmin = regEmail.toLowerCase().includes('admin') ||
                     regEmail.toLowerCase().includes('مدير');
 
-    login({
-      name: regName.trim() || 'مستخدم',
-      email: regEmail.trim(),
-      phone: regPhone.trim(),
-      role: isAdmin ? 'admin' : 'buyer'
-    });
+    const result = await signUpUserWithSupabase(
+      regEmail,
+      regPassword,
+      regName,
+      regPhone,
+      isAdmin ? 'admin' : 'buyer'
+    );
 
-    setIsLoading(false);
-    setShowSuccess(true);
+    if (result.ok && result.user) {
+      login(result.user);
+      setIsLoading(false);
+      setShowSuccess(true);
+      setTimeout(() => {
+        navigate('/');
+      }, 1200);
+    } else {
+      setRegError(result.error || 'تعذر إنشاء الحساب، يرجى المحاولة لاحقاً');
+      setIsLoading(false);
+    }
+  };
 
-    setTimeout(() => {
-      navigate('/');
-    }, 1200);
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail.trim()) return;
+    setIsResetLoading(true);
+    setResetMessage('');
+
+    const res = await sendPasswordResetEmail(resetEmail.trim());
+    setIsResetLoading(false);
+    setResetMessage(res.message);
   };
 
   const handleGuestEntry = async () => {
@@ -336,6 +357,75 @@ export const AuthPage: React.FC = () => {
               <p className="mt-2 text-sm text-slate-400 font-bold">
                 جاري تحويلك إلى المتجر...
               </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ----- Forgot Password Overlay ----- */}
+        <AnimatePresence>
+          {showForgotPassword && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="absolute inset-0 z-50 flex flex-col justify-between rounded-[2.5rem] bg-slate-900/95 backdrop-blur-xl p-6 sm:p-8 text-right"
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <h3 className="text-lg font-black text-white flex items-center gap-2">
+                    <Lock size={18} className="text-orange-400" />
+                    إعادة تعيين كلمة المرور
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => { setShowForgotPassword(false); setResetMessage(''); }}
+                    className="text-slate-400 hover:text-white text-xs font-bold"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+
+                <p className="text-xs text-slate-400 font-bold leading-relaxed">
+                  أدخل بريدك الإلكتروني المسجل في المتجر، وسنقوم بإرسال رمز/رابط استعادة كلمة المرور فوراً إلى صندوق بريدك.
+                </p>
+
+                <form onSubmit={handleForgotPassword} className="space-y-4 pt-2">
+                  <InputField
+                    label="البريد الإلكتروني المسجل"
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="example@mail.com"
+                    icon={<AtSign size={18} />}
+                  />
+
+                  {resetMessage && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="rounded-2xl bg-emerald-500/10 border border-emerald-500/30 p-3 text-xs font-bold text-emerald-400"
+                    >
+                      {resetMessage}
+                    </motion.div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isResetLoading || !resetEmail.trim()}
+                    className="w-full rounded-2xl bg-gradient-to-r from-orange-500 to-red-500 py-3.5 text-xs font-black text-white shadow-lg shadow-orange-500/25 transition-all hover:opacity-95 disabled:opacity-50"
+                  >
+                    {isResetLoading ? 'جاري الإرسال...' : 'إرسال رمز التعيين للبريد'}
+                  </button>
+                </form>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { setShowForgotPassword(false); setResetMessage(''); }}
+                className="w-full rounded-2xl bg-white/5 py-3 text-xs font-bold text-slate-400 hover:bg-white/10 hover:text-white transition-all"
+              >
+                العودة لشاشة الدخول
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -465,7 +555,7 @@ export const AuthPage: React.FC = () => {
                 </label>
                 <button
                   type="button"
-                  onClick={() => alert('سيتم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني')}
+                  onClick={() => { setShowForgotPassword(true); setResetEmail(loginEmail); }}
                   className="text-[11px] font-bold text-orange-400 hover:text-orange-300 hover:underline transition-colors"
                 >
                   نسيت كلمة المرور؟
@@ -572,7 +662,7 @@ export const AuthPage: React.FC = () => {
                     onChange={(e) => setAgreedTerms(e.target.checked)}
                     className="h-4 w-4 rounded border-white/10 bg-slate-950 text-orange-500 focus:ring-orange-500 focus:ring-offset-0"
                   />
-                  <span>أوافق على <button type="button" className="text-orange-400 hover:underline">شروط الاستخدام</button> و <button type="button" className="text-orange-400 hover:underline">سياسة الخصوصية</button></span>
+                  <span>أوافق على <span className="text-orange-400 hover:underline cursor-pointer">شروط الاستخدام</span> و <span className="text-orange-400 hover:underline cursor-pointer">سياسة الخصوصية</span></span>
                 </label>
                 <label className="flex items-center gap-2 text-xs font-bold text-slate-400 cursor-pointer select-none">
                   <input
