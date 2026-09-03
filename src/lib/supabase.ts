@@ -175,6 +175,26 @@ export const getUserProfile = async (userId: string): Promise<any | null> => {
 };
 
 /**
+ * تحديث ملف المستخدم في جدول users
+ */
+export const updateUserProfile = async (userId: string, updates: Record<string, any>) => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('❌ Error updating user profile:', error);
+    return null;
+  }
+};
+
+/**
  * الحصول على دور المستخدم من جدول user_roles
  */
 export const getUserRole = async (userId: string): Promise<UserRole> => {
