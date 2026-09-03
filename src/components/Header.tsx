@@ -502,17 +502,7 @@ export const Header: React.FC = () => {
                   <User size={22} />
                 </Link>
               </>
-            ) : (
-              /* Simple Profile Icon when not logged in */
-              <Link
-                to="/auth"
-                className="relative block rounded-full p-2 text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition-all active:scale-90"
-                aria-label="حسابي"
-                title="تسجيل الدخول / إنشاء حساب"
-              >
-                <User size={22} />
-              </Link>
-            )}
+            ) : null}
 
             {/* Admin Portal Button */}
             {isAuthenticated && (
