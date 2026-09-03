@@ -10,7 +10,7 @@
     "email": "support@doomarket.com",
     "freeShippingMin": 99,
     "announcement": "🔥 عروض البرق · خصم حتى 80% · شحن مجاني فوق 99 ر.س",
-    "showAnnouncement": true,
+    "showAnnouncement": false,
     "whatsapp": "963954475933",
     "qrImage": "/uploads/DOO__1_.png",
     "qrTitle": "امسح للدفع / التواصل",

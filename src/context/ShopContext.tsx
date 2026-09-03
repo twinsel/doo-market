@@ -85,7 +85,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return {
           ...initialShopData,
           ...parsed,
-          settings: { ...initialShopData.settings, ...parsed.settings },
+          settings: { ...initialShopData.settings, ...parsed.settings, showAnnouncement: false },
           categories: parsed.categories && parsed.categories.length ? parsed.categories : initialShopData.categories,
           products: parsed.products && parsed.products.length ? parsed.products : initialShopData.products,
           banners: parsed.banners && parsed.banners.length ? parsed.banners : initialShopData.banners,
