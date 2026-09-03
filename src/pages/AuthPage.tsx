@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Mail,
   Lock,
@@ -14,13 +14,11 @@ import {
   Truck,
   Zap,
   Gift,
-  Fingerprint,
+  ShoppingBag,
+  Tag,
   AtSign,
   AlertCircle,
-  Facebook,
-  Twitter,
-  Instagram,
-  Github
+  Home
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShop } from '../context/ShopContext';
@@ -29,101 +27,6 @@ import {
   signInUserWithSupabase,
   sendPasswordResetEmail
 } from '../services/supabaseService';
-
-// ============================================================
-// Sub-Components
-// ============================================================
-
-interface SocialButtonProps {
-  icon: React.ReactNode;
-  label: string;
-  onClick?: () => void;
-  bgColor?: string;
-  textColor?: string;
-  hoverBg?: string;
-}
-
-const SocialButton: React.FC<SocialButtonProps> = ({
-  icon,
-  label,
-  onClick,
-  bgColor = 'bg-white/10',
-  textColor = 'text-white/70',
-  hoverBg = 'hover:bg-white/20'
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={`flex flex-1 items-center justify-center gap-2.5 rounded-2xl border border-white/10 ${bgColor} py-3 text-xs font-bold ${textColor} ${hoverBg} transition-all duration-300 active:scale-95`}
-  >
-    {icon}
-    <span>{label}</span>
-  </button>
-);
-
-interface InputFieldProps {
-  label: string;
-  type: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  placeholder: string;
-  icon: React.ReactNode;
-  required?: boolean;
-  error?: string;
-  rightElement?: React.ReactNode;
-}
-
-const InputField: React.FC<InputFieldProps> = ({
-  label,
-  type,
-  value,
-  onChange,
-  placeholder,
-  icon,
-  required = true,
-  error,
-  rightElement
-}) => (
-  <div className="space-y-1.5 text-right">
-    <label className="block text-xs font-bold text-slate-300">
-      {label}
-      {required && <span className="text-red-400 me-1">*</span>}
-    </label>
-    <div className="relative">
-      <input
-        type={type}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        className={`w-full rounded-2xl border ${
-          error ? 'border-red-500/50 ring-2 ring-red-500/20' : 'border-white/10'
-        } bg-slate-950/50 p-3.5 ps-11 pe-11 text-sm font-bold text-white placeholder-slate-500 outline-none transition-all focus:border-orange-500 focus:bg-slate-950 focus:ring-2 focus:ring-orange-500/20`}
-      />
-      <span className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-500">
-        {icon}
-      </span>
-      {rightElement && (
-        <span className="absolute end-4 top-1/2 -translate-y-1/2">
-          {rightElement}
-        </span>
-      )}
-    </div>
-    {error && (
-      <motion.p
-        initial={{ opacity: 0, y: -5 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-1 text-[11px] font-bold text-red-400 justify-start"
-      >
-        <AlertCircle size={13} />
-        {error}
-      </motion.p>
-    )}
-  </div>
-);
-
-// ============================================================
-// Main Component
-// ============================================================
 
 export const AuthPage: React.FC = () => {
   const navigate = useNavigate();
@@ -145,8 +48,7 @@ export const AuthPage: React.FC = () => {
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
   const [regError, setRegError] = useState('');
-  const [agreedTerms, setAgreedTerms] = useState(false);
-  const [receiveUpdates, setReceiveUpdates] = useState(true);
+  const [agreedTerms, setAgreedTerms] = useState(true);
 
   // Shared
   const [showPassword, setShowPassword] = useState(false);
@@ -199,7 +101,7 @@ export const AuthPage: React.FC = () => {
     }
 
     if (!agreedTerms) {
-      setRegError('يرجى الموافقة على الشروط والأحكام');
+      setRegError('يرجى الموافقة على الشروط والأحكام للمتابعة');
       return;
     }
 
@@ -254,545 +156,480 @@ export const AuthPage: React.FC = () => {
     navigate('/');
   };
 
-  // ----- Animation Variants -----
-  const containerVariants = {
-    hidden: { opacity: 0, scale: 0.95, y: 20 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      y: 0,
-      transition: { duration: 0.5, ease: 'easeOut' }
-    }
-  };
-
-  const formVariants = {
-    hidden: { opacity: 0, x: 30 },
-    visible: {
-      opacity: 1,
-      x: 0,
-      transition: { duration: 0.3, ease: 'easeOut' }
-    },
-    exit: {
-      opacity: 0,
-      x: -30,
-      transition: { duration: 0.25, ease: 'easeIn' }
-    }
-  };
-
-  const successVariants = {
-    hidden: { opacity: 0, scale: 0.8, y: 20 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      y: 0,
-      transition: { type: 'spring', damping: 20, stiffness: 300 }
-    }
-  };
-
-  // ============================================================
-  // Render
-  // ============================================================
   return (
-    <div
-      className="min-h-screen flex items-center justify-center bg-slate-950 p-4 sm:p-6 my-auto"
-      dir="rtl"
-    >
-      {/* ---------- Animated Background ---------- */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.5, 0.3],
-            x: [0, 40, 0],
-            y: [0, -40, 0]
-          }}
-          transition={{ repeat: Infinity, duration: 10, ease: 'easeInOut' }}
-          className="absolute -top-40 -right-40 h-[600px] w-[600px] rounded-full bg-orange-600/20 blur-3xl"
-        />
-        <motion.div
-          animate={{
-            scale: [1, 1.3, 1],
-            opacity: [0.2, 0.4, 0.2],
-            x: [0, -50, 0],
-            y: [0, 50, 0]
-          }}
-          transition={{ repeat: Infinity, duration: 12, ease: 'easeInOut' }}
-          className="absolute -bottom-40 -left-40 h-[600px] w-[600px] rounded-full bg-red-600/15 blur-3xl"
-        />
-        <motion.div
-          animate={{
-            scale: [1, 1.15, 1],
-            opacity: [0.1, 0.25, 0.1]
-          }}
-          transition={{ repeat: Infinity, duration: 8, ease: 'easeInOut' }}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full bg-amber-500/10 blur-3xl"
-        />
-      </div>
+    <div className="min-h-screen bg-[#FAF9F6] flex flex-col lg:flex-row font-sans" dir="rtl">
+      {/* ============================================================ */}
+      {/* LEFT / MAIN FORM CONTAINER (Expanded Space) */}
+      {/* ============================================================ */}
+      <div className="flex-1 flex flex-col justify-between p-6 sm:p-10 lg:p-12 max-w-xl mx-auto w-full">
+        {/* Top Header Logo (Mobile Only) */}
+        <div className="lg:hidden flex items-center justify-between mb-8">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-md font-black">
+              دُو
+            </div>
+            <span className="text-lg font-black text-slate-900">{data.settings.siteName || 'دُو ماركت'}</span>
+          </Link>
+        </div>
 
-      {/* ---------- Main Card ---------- */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="relative w-full max-w-md overflow-hidden rounded-[2.5rem] border border-white/10 bg-slate-900/80 p-6 sm:p-8 shadow-2xl backdrop-blur-2xl"
-      >
-        {/* ----- Success Overlay ----- */}
-        <AnimatePresence>
-          {showSuccess && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: 20 }}
-              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-              className="absolute inset-0 z-50 flex flex-col items-center justify-center rounded-[2.5rem] bg-slate-900/95 backdrop-blur-xl p-8 text-center"
-            >
+        {/* Main Form Content */}
+        <div className="my-auto space-y-6">
+          {/* Title & Subtitle */}
+          <div className="text-right space-y-1.5">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              {activeTab === 'login' ? 'تسجيل الدخول' : 'إنشاء حساب جديد'}
+            </h1>
+            <p className="text-xs sm:text-sm font-bold text-slate-400">
+              {activeTab === 'login' ? 'أدخل بياناتك للمتابعة' : 'أنشئ حسابك الجديد واستمتع بخصومات حصرية'}
+            </p>
+          </div>
+
+          {/* Success Overlay */}
+          <AnimatePresence>
+            {showSuccess && (
               <motion.div
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 0.6, repeat: 2 }}
-                className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-emerald-500/20"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="rounded-3xl bg-emerald-500 p-6 text-white text-center space-y-3 shadow-xl"
               >
-                <CheckCircle2 size={48} className="text-emerald-400" />
+                <CheckCircle2 size={40} className="mx-auto text-white" />
+                <h3 className="text-xl font-black">تم إنشاء الحساب بنجاح! 🎉</h3>
+                <p className="text-xs text-emerald-100 font-bold">جاري تحويلك إلى المتجر...</p>
               </motion.div>
-              <h2 className="text-2xl font-black text-white">تم إنشاء الحساب بنجاح! 🎉</h2>
-              <p className="mt-2 text-sm text-slate-400 font-bold">
-                جاري تحويلك إلى المتجر...
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+          </AnimatePresence>
 
-        {/* ----- Forgot Password Overlay ----- */}
-        <AnimatePresence>
-          {showForgotPassword && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="absolute inset-0 z-50 flex flex-col justify-between rounded-[2.5rem] bg-slate-900/95 backdrop-blur-xl p-6 sm:p-8 text-right"
-            >
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                  <h3 className="text-lg font-black text-white flex items-center gap-2">
-                    <Lock size={18} className="text-orange-400" />
-                    إعادة تعيين كلمة المرور
-                  </h3>
+          {/* Forgot Password Modal */}
+          <AnimatePresence>
+            {showForgotPassword && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="rounded-3xl border border-orange-200 bg-orange-50/50 p-6 space-y-4"
+              >
+                <div className="flex items-center justify-between border-b border-orange-100 pb-2">
+                  <span className="text-sm font-black text-orange-900 flex items-center gap-2">
+                    <Lock size={16} className="text-orange-500" />
+                    استعادة كلمة المرور
+                  </span>
                   <button
                     type="button"
                     onClick={() => { setShowForgotPassword(false); setResetMessage(''); }}
-                    className="text-slate-400 hover:text-white text-xs font-bold"
+                    className="text-xs font-bold text-slate-400 hover:text-slate-600"
                   >
                     إلغاء
                   </button>
                 </div>
 
-                <p className="text-xs text-slate-400 font-bold leading-relaxed">
-                  أدخل بريدك الإلكتروني المسجل في المتجر، وسنقوم بإرسال رمز/رابط استعادة كلمة المرور فوراً إلى صندوق بريدك.
+                <p className="text-xs font-bold text-slate-600 leading-relaxed">
+                  أدخل بريدك الإلكتروني وسنرسل لك رمز تعيين كلمة المرور فوراً:
                 </p>
 
-                <form onSubmit={handleForgotPassword} className="space-y-4 pt-2">
-                  <InputField
-                    label="البريد الإلكتروني المسجل"
-                    type="email"
-                    value={resetEmail}
-                    onChange={(e) => setResetEmail(e.target.value)}
-                    placeholder="example@mail.com"
-                    icon={<AtSign size={18} />}
-                  />
+                <form onSubmit={handleForgotPassword} className="space-y-3">
+                  <div className="relative">
+                    <input
+                      type="email"
+                      required
+                      value={resetEmail}
+                      onChange={e => setResetEmail(e.target.value)}
+                      placeholder="example@email.com"
+                      className="w-full rounded-2xl border border-slate-200 bg-white p-3.5 ps-11 text-sm font-bold text-slate-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10"
+                    />
+                    <AtSign size={18} className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  </div>
 
                   {resetMessage && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="rounded-2xl bg-emerald-500/10 border border-emerald-500/30 p-3 text-xs font-bold text-emerald-400"
-                    >
+                    <div className="rounded-xl bg-emerald-100 border border-emerald-200 p-3 text-xs font-bold text-emerald-800">
                       {resetMessage}
-                    </motion.div>
+                    </div>
                   )}
 
                   <button
                     type="submit"
                     disabled={isResetLoading || !resetEmail.trim()}
-                    className="w-full rounded-2xl bg-gradient-to-r from-orange-500 to-red-500 py-3.5 text-xs font-black text-white shadow-lg shadow-orange-500/25 transition-all hover:opacity-95 disabled:opacity-50"
+                    className="w-full rounded-2xl bg-orange-500 py-3 text-xs font-black text-white shadow-md hover:bg-orange-600 disabled:opacity-50"
                   >
-                    {isResetLoading ? 'جاري الإرسال...' : 'إرسال رمز التعيين للبريد'}
+                    {isResetLoading ? 'جاري الإرسال...' : 'إرسال رابط الاستعادة'}
                   </button>
                 </form>
-              </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-              <button
-                type="button"
-                onClick={() => { setShowForgotPassword(false); setResetMessage(''); }}
-                className="w-full rounded-2xl bg-white/5 py-3 text-xs font-bold text-slate-400 hover:bg-white/10 hover:text-white transition-all"
-              >
-                العودة لشاشة الدخول
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ----- Header ----- */}
-        <div className="text-center space-y-4">
-          <div className="flex justify-center">
-            <div className="flex items-center gap-2.5 rounded-full bg-orange-500/10 px-4 py-2 border border-orange-500/20">
-              <Sparkles size={16} className="text-orange-400" />
-              <span className="text-xs font-black text-orange-400">
-                {data.settings.siteName || 'دُو ماركت'}
-              </span>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-              {activeTab === 'login' ? 'مرحباً بك مجدداً' : 'انضم إلى المتجر'}
-            </h1>
-            <p className="text-sm text-slate-400 font-bold max-w-xs mx-auto">
-              {activeTab === 'login'
-                ? 'سجل دخولك للوصول إلى طلباتك وعروضك الحصرية'
-                : 'أنشئ حساباً جديداً واستمتع بتجربة تسوق فريدة'}
-            </p>
-          </div>
-        </div>
-
-        {/* ----- Features Row ----- */}
-        <div className="mt-6 grid grid-cols-2 gap-2">
-          {[
-            { icon: Zap, label: 'عروض برق' },
-            { icon: Truck, label: 'توصيل سريع' },
-            { icon: ShieldCheck, label: 'دفع آمن' },
-            { icon: Gift, label: 'مكافآت حصرية' }
-          ].map((item, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-2 rounded-2xl bg-white/5 p-2.5 border border-white/5"
-            >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-orange-500/20 text-orange-400">
-                <item.icon size={15} />
-              </div>
-              <span className="text-[11px] font-bold text-slate-300">{item.label}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* ----- Tab Switcher ----- */}
-        <div className="relative mt-6 flex rounded-2xl bg-slate-950/60 p-1 border border-white/5">
-          <button
-            type="button"
-            onClick={() => { setActiveTab('login'); setLoginError(''); setRegError(''); }}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-black transition-all duration-300 ${
-              activeTab === 'login'
-                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/25'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            تسجيل الدخول
-          </button>
-          <button
-            type="button"
-            onClick={() => { setActiveTab('register'); setLoginError(''); setRegError(''); }}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-black transition-all duration-300 ${
-              activeTab === 'register'
-                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/25'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            حساب جديد
-          </button>
-        </div>
-
-        {/* ----- Forms ----- */}
-        <AnimatePresence mode="wait">
-          {activeTab === 'login' ? (
-            <motion.form
-              key="login-form"
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -30 }}
-              transition={{ duration: 0.3 }}
-              onSubmit={handleLogin}
-              className="mt-6 space-y-4"
-            >
-              {/* Email / Phone */}
-              <InputField
-                label="البريد الإلكتروني أو رقم الجوال"
-                type="text"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                placeholder="example@mail.com أو 0501234567"
-                icon={<AtSign size={18} />}
-                error={loginError}
-              />
-
-              {/* Password */}
-              <InputField
-                label="كلمة المرور"
-                type={showPassword ? 'text' : 'password'}
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                placeholder="••••••••"
-                icon={<Lock size={18} />}
-                error={loginError}
-                rightElement={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(prev => !prev)}
-                    className="text-slate-500 hover:text-slate-300 transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                }
-              />
-
-              {/* Options */}
-              <div className="flex items-center justify-between pt-1">
-                <label className="flex items-center gap-2 text-xs font-bold text-slate-400 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="h-4 w-4 rounded border-white/10 bg-slate-950 text-orange-500 focus:ring-orange-500 focus:ring-offset-0"
-                  />
-                  <span>تذكرني</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => { setShowForgotPassword(true); setResetEmail(loginEmail); }}
-                  className="text-[11px] font-bold text-orange-400 hover:text-orange-300 hover:underline transition-colors"
+          {/* Form */}
+          {!showForgotPassword && (
+            <AnimatePresence mode="wait">
+              {activeTab === 'login' ? (
+                <motion.form
+                  key="login"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  onSubmit={handleLogin}
+                  className="space-y-4"
                 >
-                  نسيت كلمة المرور؟
-                </button>
-              </div>
+                  {/* Email Input */}
+                  <div className="space-y-1.5 text-right">
+                    <label className="block text-xs font-bold text-slate-600">البريد الإلكتروني</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        value={loginEmail}
+                        onChange={e => setLoginEmail(e.target.value)}
+                        placeholder="example@email.com"
+                        className="w-full rounded-2xl border border-slate-200 bg-white p-3.5 ps-11 text-sm font-bold text-slate-900 placeholder-slate-400 outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+                      />
+                      <Mail size={18} className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    </div>
+                  </div>
 
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-red-500 py-4 text-sm font-black text-white shadow-xl shadow-orange-500/25 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? (
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                ) : (
-                  <>
-                    <span>تسجيل الدخول</span>
-                    <ArrowLeft size={18} />
-                  </>
-                )}
-              </button>
-            </motion.form>
-          ) : (
-            <motion.form
-              key="register-form"
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -30 }}
-              transition={{ duration: 0.3 }}
-              onSubmit={handleRegister}
-              className="mt-6 space-y-4"
-            >
-              {/* Name */}
-              <InputField
-                label="الاسم الكامل"
-                type="text"
-                value={regName}
-                onChange={(e) => setRegName(e.target.value)}
-                placeholder="محمد أحمد"
-                icon={<User size={18} />}
-                error={regError}
-              />
+                  {/* Password Input */}
+                  <div className="space-y-1.5 text-right">
+                    <label className="block text-xs font-bold text-slate-600">كلمة المرور</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        value={loginPassword}
+                        onChange={e => setLoginPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full rounded-2xl border border-slate-200 bg-white p-3.5 ps-11 pe-11 text-sm font-bold text-slate-900 placeholder-slate-400 outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+                      />
+                      <Lock size={18} className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(prev => !prev)}
+                        className="absolute end-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
 
-              {/* Email */}
-              <InputField
-                label="البريد الإلكتروني"
-                type="email"
-                value={regEmail}
-                onChange={(e) => setRegEmail(e.target.value)}
-                placeholder="example@mail.com"
-                icon={<Mail size={18} />}
-                error={regError}
-              />
+                  {/* Options Row: Remember Me & Forgot Password */}
+                  <div className="flex items-center justify-between text-xs font-bold pt-1">
+                    <button
+                      type="button"
+                      onClick={() => { setShowForgotPassword(true); setResetEmail(loginEmail); }}
+                      className="text-orange-500 hover:text-orange-600 hover:underline"
+                    >
+                      نسيت كلمة المرور؟
+                    </button>
+                    <label className="flex items-center gap-2 text-slate-500 cursor-pointer select-none">
+                      <span>تذكرني</span>
+                      <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={e => setRememberMe(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-orange-500 focus:ring-orange-500"
+                      />
+                    </label>
+                  </div>
 
-              {/* Phone */}
-              <InputField
-                label="رقم الجوال (اختياري)"
-                type="tel"
-                value={regPhone}
-                onChange={(e) => setRegPhone(e.target.value)}
-                placeholder="0501234567"
-                icon={<Phone size={18} />}
-                required={false}
-                error={regError}
-              />
+                  {/* Login Error Alert */}
+                  {loginError && (
+                    <div className="rounded-2xl bg-red-50 border border-red-200 p-3 text-xs font-bold text-red-600 flex items-center gap-2">
+                      <AlertCircle size={16} />
+                      <span>{loginError}</span>
+                    </div>
+                  )}
 
-              {/* Password */}
-              <InputField
-                label="كلمة المرور"
-                type={showPassword ? 'text' : 'password'}
-                value={regPassword}
-                onChange={(e) => setRegPassword(e.target.value)}
-                placeholder="•••••••• (6 أحرف على الأقل)"
-                icon={<Lock size={18} />}
-                error={regError}
-                rightElement={
+                  {/* Login Submit Button */}
                   <button
-                    type="button"
-                    onClick={() => setShowPassword(prev => !prev)}
-                    className="text-slate-500 hover:text-slate-300 transition-colors"
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full rounded-2xl bg-gradient-to-r from-orange-400 via-orange-500 to-amber-500 py-3.5 text-sm font-black text-white shadow-lg shadow-orange-500/25 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {isLoading ? (
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    ) : (
+                      <>
+                        <ArrowLeft size={18} />
+                        <span>تسجيل الدخول</span>
+                      </>
+                    )}
                   </button>
-                }
-              />
+                </motion.form>
+              ) : (
+                <motion.form
+                  key="register"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  onSubmit={handleRegister}
+                  className="space-y-4"
+                >
+                  {/* Name Input */}
+                  <div className="space-y-1.5 text-right">
+                    <label className="block text-xs font-bold text-slate-600">الاسم الكامل</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        value={regName}
+                        onChange={e => setRegName(e.target.value)}
+                        placeholder="محمد أحمد"
+                        className="w-full rounded-2xl border border-slate-200 bg-white p-3.5 ps-11 text-sm font-bold text-slate-900 placeholder-slate-400 outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+                      />
+                      <User size={18} className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    </div>
+                  </div>
 
-              {/* Confirm Password */}
-              <InputField
-                label="تأكيد كلمة المرور"
-                type={showPassword ? 'text' : 'password'}
-                value={regConfirmPassword}
-                onChange={(e) => setRegConfirmPassword(e.target.value)}
-                placeholder="••••••••"
-                icon={<Fingerprint size={18} />}
-                error={regError}
-              />
+                  {/* Email Input */}
+                  <div className="space-y-1.5 text-right">
+                    <label className="block text-xs font-bold text-slate-600">البريد الإلكتروني</label>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        required
+                        value={regEmail}
+                        onChange={e => setRegEmail(e.target.value)}
+                        placeholder="example@email.com"
+                        className="w-full rounded-2xl border border-slate-200 bg-white p-3.5 ps-11 text-sm font-bold text-slate-900 placeholder-slate-400 outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+                      />
+                      <Mail size={18} className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    </div>
+                  </div>
 
-              {/* Checkboxes */}
-              <div className="space-y-2 pt-1">
-                <label className="flex items-center gap-2 text-xs font-bold text-slate-400 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={agreedTerms}
-                    onChange={(e) => setAgreedTerms(e.target.checked)}
-                    className="h-4 w-4 rounded border-white/10 bg-slate-950 text-orange-500 focus:ring-orange-500 focus:ring-offset-0"
-                  />
-                  <span>أوافق على <span className="text-orange-400 hover:underline cursor-pointer">شروط الاستخدام</span> و <span className="text-orange-400 hover:underline cursor-pointer">سياسة الخصوصية</span></span>
-                </label>
-                <label className="flex items-center gap-2 text-xs font-bold text-slate-400 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={receiveUpdates}
-                    onChange={(e) => setReceiveUpdates(e.target.checked)}
-                    className="h-4 w-4 rounded border-white/10 bg-slate-950 text-orange-500 focus:ring-orange-500 focus:ring-offset-0"
-                  />
-                  <span>أرغب في تلقي العروض والتحديثات</span>
-                </label>
-              </div>
+                  {/* Phone Input */}
+                  <div className="space-y-1.5 text-right">
+                    <label className="block text-xs font-bold text-slate-600">رقم الجوال (اختياري)</label>
+                    <div className="relative">
+                      <input
+                        type="tel"
+                        value={regPhone}
+                        onChange={e => setRegPhone(e.target.value)}
+                        placeholder="0501234567"
+                        className="w-full rounded-2xl border border-slate-200 bg-white p-3.5 ps-11 text-sm font-bold text-slate-900 placeholder-slate-400 outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+                      />
+                      <Phone size={18} className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    </div>
+                  </div>
 
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-red-500 py-4 text-sm font-black text-white shadow-xl shadow-orange-500/25 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? (
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                ) : (
-                  <>
-                    <span>إنشاء حساب جديد</span>
-                    <ArrowLeft size={18} />
-                  </>
-                )}
-              </button>
-            </motion.form>
+                  {/* Password Input */}
+                  <div className="space-y-1.5 text-right">
+                    <label className="block text-xs font-bold text-slate-600">كلمة المرور</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        value={regPassword}
+                        onChange={e => setRegPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full rounded-2xl border border-slate-200 bg-white p-3.5 ps-11 pe-11 text-sm font-bold text-slate-900 placeholder-slate-400 outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+                      />
+                      <Lock size={18} className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(prev => !prev)}
+                        className="absolute end-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Confirm Password Input */}
+                  <div className="space-y-1.5 text-right">
+                    <label className="block text-xs font-bold text-slate-600">تأكيد كلمة المرور</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        value={regConfirmPassword}
+                        onChange={e => setRegConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full rounded-2xl border border-slate-200 bg-white p-3.5 ps-11 text-sm font-bold text-slate-900 placeholder-slate-400 outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+                      />
+                      <Lock size={18} className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    </div>
+                  </div>
+
+                  {/* Terms Checkbox */}
+                  <div className="pt-1 text-right">
+                    <label className="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={agreedTerms}
+                        onChange={e => setAgreedTerms(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-orange-500 focus:ring-orange-500"
+                      />
+                      <span>أوافق على الشروط والأحكام وسياسة الخصوصية</span>
+                    </label>
+                  </div>
+
+                  {/* Register Error Alert */}
+                  {regError && (
+                    <div className="rounded-2xl bg-red-50 border border-red-200 p-3 text-xs font-bold text-red-600 flex items-center gap-2">
+                      <AlertCircle size={16} />
+                      <span>{regError}</span>
+                    </div>
+                  )}
+
+                  {/* Register Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full rounded-2xl bg-gradient-to-r from-orange-400 via-orange-500 to-amber-500 py-3.5 text-sm font-black text-white shadow-lg shadow-orange-500/25 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isLoading ? (
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    ) : (
+                      <>
+                        <ArrowLeft size={18} />
+                        <span>إنشاء حساب جديد</span>
+                      </>
+                    )}
+                  </button>
+                </motion.form>
+              )}
+            </AnimatePresence>
           )}
-        </AnimatePresence>
 
-        {/* ----- Divider ----- */}
-        <div className="relative my-6 text-center">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-white/10" />
+          {/* Divider: أو */}
+          <div className="relative my-6 text-center">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200" />
+            </div>
+            <span className="relative bg-[#FAF9F6] px-4 text-xs font-bold text-slate-400">
+              أو
+            </span>
           </div>
-          <span className="relative bg-slate-900 px-3 text-[11px] font-bold text-slate-400">
-            أو تابع كزائر
-          </span>
-        </div>
 
-        {/* ----- Guest & Social Buttons ----- */}
-        <div className="space-y-2.5">
+          {/* Google Sign In Button */}
+          <button
+            type="button"
+            onClick={() => alert('خدمة تسجيل الدخول بـ Google متاحة عبر الحساب المباشر')}
+            className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white py-3.5 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 transition-all active:scale-[0.98]"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+              />
+            </svg>
+            <span>الدخول بحساب Google</span>
+          </button>
+
+          {/* Guest Browsing Button */}
           <button
             type="button"
             onClick={handleGuestEntry}
-            disabled={isLoading}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 py-3.5 text-xs font-bold text-slate-300 hover:bg-white/10 hover:text-white transition-all active:scale-[0.98] disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white/50 py-3.5 text-xs font-bold text-slate-600 hover:bg-slate-100/80 hover:border-slate-400 transition-all active:scale-[0.98]"
           >
-            <span>🛒 التصفح كزائر (معاينة المتجر)</span>
+            <Sparkles size={16} className="text-amber-500" />
+            <span>الدخول كزائر</span>
           </button>
 
-          <div className="flex items-center gap-2.5">
-            <SocialButton
-              icon={<span className="text-lg">🔑</span>}
-              label="دخول مسؤول"
-              onClick={() => {
-                login({
-                  id: 'admin-demo',
-                  name: 'مدير النظام',
-                  email: 'admin@doomarket.com',
-                  phone: '',
-                  role: 'admin'
-                });
-                navigate('/');
-              }}
-              bgColor="bg-purple-500/10"
-              textColor="text-purple-400"
-              hoverBg="hover:bg-purple-500/20"
-            />
+          {/* Switch Tab Link */}
+          <div className="text-center pt-2">
+            {activeTab === 'login' ? (
+              <p className="text-xs font-bold text-slate-500">
+                ليس لديك حساب؟{' '}
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('register'); setLoginError(''); setRegError(''); }}
+                  className="font-black text-orange-500 hover:underline ms-1"
+                >
+                  أنشئ حساباً جديداً
+                </button>
+              </p>
+            ) : (
+              <p className="text-xs font-bold text-slate-500">
+                لديك حساب بالفعل؟{' '}
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('login'); setLoginError(''); setRegError(''); }}
+                  className="font-black text-orange-500 hover:underline ms-1"
+                >
+                  تسجيل الدخول
+                </button>
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom Back Home Link */}
+        <div className="pt-6 text-center border-t border-slate-200/60 mt-6">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-orange-600 transition-colors"
+          >
+            <Home size={14} />
+            <span>العودة للصفحة الرئيسية</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/* RIGHT PANEL - ORANGE BRANDING PANEL (50% Narrower Sleek Sidebar) */}
+      {/* ============================================================ */}
+      <div className="hidden lg:flex lg:w-2/12 xl:w-2/12 min-w-[260px] bg-gradient-to-b from-orange-500 via-orange-600 to-amber-600 text-white p-8 flex-col justify-between relative overflow-hidden shrink-0 shadow-2xl">
+        {/* Background Decorative Glow Circle */}
+        <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-white/10 blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl pointer-events-none" />
+
+        {/* Top Branding Badge */}
+        <div className="relative z-10 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/20">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-orange-600 shadow-md">
+              <ShoppingBag size={18} />
+            </div>
+            <span className="text-base font-black tracking-tight text-white">{data.settings.siteName || 'دُو ماركت'}</span>
+          </Link>
+        </div>
+
+        {/* Middle Feature Highlights */}
+        <div className="relative z-10 space-y-6 my-auto py-8 text-right">
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black tracking-tight leading-tight">
+              {activeTab === 'login' ? 'مرحباً بعودتك' : 'انضم إلينا اليوم'}
+            </h2>
+            <p className="text-xs font-bold text-orange-100 leading-relaxed">
+              سجل دخولك للوصول إلى آلاف المنتجات والصفقات الحصرية بأسهل طريقة.
+            </p>
           </div>
 
-          <div className="flex items-center gap-2.5">
-            <SocialButton
-              icon={<span className="text-lg">📱</span>}
-              label="حساب تجريبي"
-              onClick={() => {
-                login({
-                  id: 'demo-user',
-                  name: 'مستخدم تجريبي',
-                  email: 'demo@doomarket.com',
-                  phone: '0501234567',
-                  role: 'buyer'
-                });
-                navigate('/');
-              }}
-              bgColor="bg-emerald-500/10"
-              textColor="text-emerald-400"
-              hoverBg="hover:bg-emerald-500/20"
-            />
-          </div>
-
-          {/* Social Media */}
-          <div className="flex items-center gap-2.5 mt-1">
-            <div className="flex-1 h-px bg-white/5" />
-            <span className="text-[10px] font-bold text-slate-500">تواصل معنا</span>
-            <div className="flex-1 h-px bg-white/5" />
-          </div>
-          <div className="flex items-center justify-center gap-3">
+          <div className="space-y-3 pt-2">
             {[
-              { icon: <Facebook size={18} />, label: 'Facebook', href: data.settings.socialFacebook || '#' },
-              { icon: <Twitter size={18} />, label: 'Twitter', href: data.settings.socialX || '#' },
-              { icon: <Instagram size={18} />, label: 'Instagram', href: data.settings.socialInstagram || '#' },
-              { icon: <Github size={18} />, label: 'GitHub', href: 'https://github.com/munzeralsmaeel/doo-market' }
-            ].map((social, i) => (
-              <a
-                key={i}
-                href={social.href}
-                target="_blank"
-                rel="noreferrer"
-                className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 hover:bg-white/20 hover:text-white transition-all active:scale-95"
-                title={social.label}
-              >
-                {social.icon}
-              </a>
-            ))}
+              { icon: Tag, text: 'آلاف المنتجات من بائعين موثوقين' },
+              { icon: Zap, text: 'صفقات وعروض حصرية كل يوم' },
+              { icon: Truck, text: 'شحن سريع لجميع المناطق' },
+              { icon: ShieldCheck, text: 'دفع آمن وحماية كاملة' }
+            ].map((feat, idx) => {
+              const IconComp = feat.icon;
+              return (
+                <div key={idx} className="flex items-center gap-2.5 text-xs font-bold text-white/90">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-white/15 border border-white/20 shadow-inner">
+                    <IconComp size={14} />
+                  </div>
+                  <span className="text-[11px] leading-tight">{feat.text}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* ----- Footer Security ----- */}
-        <div className="mt-6 flex flex-col items-center gap-2 text-center">
-          <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500">
-            <ShieldCheck size={12} className="text-emerald-500" />
-            <span>مشفر ومحمي بأعلى معايير الأمان</span>
-          </div>
-          <p className="text-[10px] text-slate-600 font-bold">
-            © {new Date().getFullYear()} {data.settings.siteName || 'دُو ماركت'} · جميع الحقوق محفوظة
-          </p>
+        {/* Bottom Footer Note */}
+        <div className="relative z-10 pt-4 border-t border-white/15 text-center text-[10px] font-bold text-orange-100">
+          منصة تسوق إلكتروني موثقة في المملكة العربية السعودية
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };
