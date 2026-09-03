@@ -402,119 +402,122 @@ export const Header: React.FC = () => {
 
           {/* Quick Action Icons Right Side */}
           <div className="ms-auto flex items-center gap-1 sm:gap-2">
-            {/* WhatsApp Support Direct Button */}
-            <a
-              href={`https://wa.me/${data.settings.whatsapp || '963954475933'}`}
-              target="_blank"
-              rel="noreferrer"
-              className="relative block rounded-full p-2 text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition-all active:scale-90"
-              title="تواصل مع المتجر"
-            >
-              <Phone size={22} />
-            </a>
+            {isAuthenticated ? (
+              <>
+                {/* WhatsApp Support Direct Button */}
+                <a
+                  href={`https://wa.me/${data.settings.whatsapp || '963954475933'}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="relative block rounded-full p-2 text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition-all active:scale-90"
+                  title="تواصل مع المتجر"
+                >
+                  <Phone size={22} />
+                </a>
 
-            {/* Notifications Button with Dropdown */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsNotifOpen(prev => !prev);
-                  if (unreadNotifCount > 0) setUnreadNotifCount(0);
-                }}
-                className="relative block rounded-full p-2 text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition-all active:scale-90"
-                aria-label="التنبيهات"
-                title="التنبيهات الإشعارات"
-              >
-                <Bell size={22} />
-                {unreadNotifCount > 0 && (
-                  <span className="absolute end-1.5 top-1.5 flex h-2.5 w-2.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-75"></span>
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-orange-500"></span>
-                  </span>
-                )}
-              </button>
-
-              {/* Notifications Dropdown */}
-              <AnimatePresence>
-                {isNotifOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute end-0 mt-2 w-80 rounded-3xl bg-white p-4 shadow-2xl ring-1 ring-black/5 z-50 text-right space-y-3"
+                {/* Notifications Button with Dropdown */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsNotifOpen(prev => !prev);
+                      if (unreadNotifCount > 0) setUnreadNotifCount(0);
+                    }}
+                    className="relative block rounded-full p-2 text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition-all active:scale-90"
+                    aria-label="التنبيهات"
+                    title="التنبيهات الإشعارات"
                   >
-                    <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                      <span className="text-xs font-black text-gray-900 flex items-center gap-1.5">
-                        <Bell size={14} className="text-orange-500" />
-                        الإشعارات والتنبيهات
+                    <Bell size={22} />
+                    {unreadNotifCount > 0 && (
+                      <span className="absolute end-1.5 top-1.5 flex h-2.5 w-2.5">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-75"></span>
+                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-orange-500"></span>
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => setIsNotifOpen(false)}
-                        className="text-gray-400 hover:text-gray-600"
+                    )}
+                  </button>
+
+                  {/* Notifications Dropdown */}
+                  <AnimatePresence>
+                    {isNotifOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="absolute end-0 mt-2 w-80 rounded-3xl bg-white p-4 shadow-2xl ring-1 ring-black/5 z-50 text-right space-y-3"
                       >
-                        <X size={14} />
-                      </button>
-                    </div>
-
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {notificationsList.map(n => (
-                        <div key={n.id} className="rounded-2xl bg-gray-50 p-3 hover:bg-orange-50/50 transition-colors">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs font-black text-slate-900">{n.title}</span>
-                            <span className="text-[9px] font-bold text-gray-400">{n.time}</span>
-                          </div>
-                          <p className="text-[11px] font-bold text-gray-600 leading-tight">{n.desc}</p>
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                          <span className="text-xs font-black text-gray-900 flex items-center gap-1.5">
+                            <Bell size={14} className="text-orange-500" />
+                            الإشعارات والتنبيهات
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setIsNotifOpen(false)}
+                            className="text-gray-400 hover:text-gray-600"
+                          >
+                            <X size={14} />
+                          </button>
                         </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
 
-            {/* Shopping Cart Icon with Badge */}
-            <motion.div animate={cartControls}>
-              <Link
-                to="/cart"
-                id="cart-icon-target"
-                className="relative block rounded-full p-2 text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition-all active:scale-90"
-                aria-label="السلة"
-              >
-                <ShoppingBag size={22} />
-                {cartCount > 0 && (
-                  <span className="absolute -end-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-bold text-white shadow-sm">
-                    {cartCount}
-                  </span>
-                )}
-              </Link>
-            </motion.div>
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {notificationsList.map(n => (
+                            <div key={n.id} className="rounded-2xl bg-gray-50 p-3 hover:bg-orange-50/50 transition-colors">
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-xs font-black text-slate-900">{n.title}</span>
+                                <span className="text-[9px] font-bold text-gray-400">{n.time}</span>
+                              </div>
+                              <p className="text-[11px] font-bold text-gray-600 leading-tight">{n.desc}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
 
-            {/* My Account / Auth Buttons */}
-            {!isAuthenticated ? (
+                {/* Shopping Cart Icon with Badge */}
+                <motion.div animate={cartControls}>
+                  <Link
+                    to="/cart"
+                    id="cart-icon-target"
+                    className="relative block rounded-full p-2 text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition-all active:scale-90"
+                    aria-label="السلة"
+                  >
+                    <ShoppingBag size={22} />
+                    {cartCount > 0 && (
+                      <span className="absolute -end-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-bold text-white shadow-sm">
+                        {cartCount}
+                      </span>
+                    )}
+                  </Link>
+                </motion.div>
+
+                {/* Profile Icon */}
+                <Link
+                  to="/profile"
+                  className="relative block rounded-full p-2 text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition-all active:scale-90"
+                  aria-label="حسابي"
+                  title="صفحة حسابي الشخصي"
+                >
+                  <User size={22} />
+                </Link>
+              </>
+            ) : (
+              /* Auth Buttons when not logged in */
               <div className="flex items-center gap-1.5 ms-1">
                 <Link
                   to="/auth"
-                  className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                  className="rounded-xl bg-slate-100 px-3.5 py-1.5 text-xs font-black text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
                 >
                   تسجيل الدخول
                 </Link>
                 <Link
                   to="/auth"
-                  className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 px-3 py-1.5 text-xs font-black text-white shadow-sm hover:opacity-95 transition-all"
+                  className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 px-3.5 py-1.5 text-xs font-black text-white shadow-sm hover:opacity-95 transition-all"
                 >
                   اشترك
                 </Link>
               </div>
-            ) : (
-              <Link
-                to="/profile"
-                className="relative block rounded-full p-2 text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition-all active:scale-90"
-                aria-label="حسابي"
-                title="صفحة حسابي الشخصي"
-              >
-                <User size={22} />
-              </Link>
             )}
 
             {/* Admin Portal Button */}
