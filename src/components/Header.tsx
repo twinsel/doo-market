@@ -507,7 +507,23 @@ export const Header: React.FC = () => {
                   <User size={22} />
                 </Link>
               </>
-            ) : null}
+            ) : (
+              /* Auth Buttons for Guests & Visitors */
+              <div className="flex items-center gap-1.5 ms-1">
+                <Link
+                  to="/auth"
+                  className="rounded-xl bg-slate-100 px-3.5 py-1.5 text-xs font-black text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition-colors shadow-sm"
+                >
+                  تسجيل الدخول
+                </Link>
+                <Link
+                  to="/auth"
+                  className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 px-3.5 py-1.5 text-xs font-black text-white shadow-sm hover:opacity-95 transition-all"
+                >
+                  اشترك
+                </Link>
+              </div>
+            )}
 
             {/* Admin Portal Button */}
             {isAdmin && (
