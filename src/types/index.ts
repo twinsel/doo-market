@@ -15,7 +15,7 @@ export interface ProductVariant {
   size: string;
   stock: number;
   sku?: string;
-  price?: number; // Optional: price can be different for some variants
+  price?: number;
 }
 
 export interface Product {
@@ -31,11 +31,11 @@ export interface Product {
   rating: number;
   reviews: number;
   sold: number;
-  stock: number; // Total stock (sum of variants if hasVariants is true)
-  hasVariants?: boolean; // Toggle for customization (sizes/colors)
-  hasSizes?: boolean; // New: Toggle specifically for sizes
-  hasColors?: boolean; // New: Toggle specifically for colors
-  variants?: ProductVariant[]; // Detailed stock per variation
+  stock: number;
+  hasVariants?: boolean;
+  hasSizes?: boolean;
+  hasColors?: boolean;
+  variants?: ProductVariant[];
   tags?: string[];
   colors?: string[];
   sizes?: string[];
@@ -137,6 +137,7 @@ export interface OrderItem {
 
 export interface Order {
   id: string;
+  userId?: string;
   items: OrderItem[];
   subtotal: number;
   shipping: number;
@@ -166,15 +167,18 @@ export interface User {
   email: string;
   phone: string;
   role: 'buyer' | 'admin';
+  avatar?: string;
   joinedAt?: string;
   cart?: any[];
   wishlist?: any[];
-  avatar?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Review {
   id: string;
   productId: string;
+  userId?: string;
   userName: string;
   rating: number;
   comment: string;
@@ -190,4 +194,29 @@ export interface ShopData {
   orders?: Order[];
   reviews?: Review[];
   reservations?: any[];
+}
+
+export interface LoginFormData {
+  email: string;
+  password: string;
+  rememberMe?: boolean;
+}
+
+export interface RegisterFormData {
+  name: string;
+  email: string;
+  phone?: string;
+  password: string;
+  confirmPassword?: string;
+  acceptTerms?: boolean;
+  receiveUpdates?: boolean;
+}
+
+export interface ResetPasswordFormData {
+  email: string;
+}
+
+export interface UpdatePasswordFormData {
+  password: string;
+  confirmPassword: string;
 }
