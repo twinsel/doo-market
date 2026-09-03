@@ -507,8 +507,8 @@ export const Header: React.FC = () => {
                   <User size={22} />
                 </Link>
               </>
-            ) : (
-              /* Auth Buttons for Guests & Visitors */
+            ) : isGuest ? (
+              /* Auth Buttons ONLY when browsing as Guest */
               <div className="flex items-center gap-1.5 ms-1">
                 <Link
                   to="/auth"
@@ -523,7 +523,7 @@ export const Header: React.FC = () => {
                   اشترك
                 </Link>
               </div>
-            )}
+            ) : null}
 
             {/* Admin Portal Button */}
             {isAdmin && (
