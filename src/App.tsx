@@ -71,7 +71,8 @@ const AppContent: React.FC = () => {
         <Routes>
           {/* Storefront Routes */}
           <Route element={<StoreLayout />}>
-            <Route index element={<HomePage />} />
+            <Route index element={<Navigate to="/profile" replace />} />
+            <Route path="home" element={<HomePage />} />
             <Route path="categories" element={<CategoriesPage />} />
             <Route path="category/:id" element={<CategoryPage />} />
             <Route path="product/:id" element={<ProductPage />} />
