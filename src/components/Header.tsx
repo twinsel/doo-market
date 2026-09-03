@@ -490,15 +490,32 @@ export const Header: React.FC = () => {
               </Link>
             </motion.div>
 
-            {/* My Account Icon Button */}
-            <Link
-              to={isAuthenticated ? "/profile" : "/auth"}
-              className="relative block rounded-full p-2 text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition-all active:scale-90"
-              aria-label="حسابي"
-              title={isAuthenticated ? "صفحة حسابي الشخصي" : "تسجيل الدخول / حساب جديد"}
-            >
-              <User size={22} />
-            </Link>
+            {/* My Account / Auth Buttons */}
+            {!isAuthenticated ? (
+              <div className="flex items-center gap-1.5 ms-1">
+                <Link
+                  to="/auth"
+                  className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                >
+                  تسجيل الدخول
+                </Link>
+                <Link
+                  to="/auth"
+                  className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 px-3 py-1.5 text-xs font-black text-white shadow-sm hover:opacity-95 transition-all"
+                >
+                  اشترك
+                </Link>
+              </div>
+            ) : (
+              <Link
+                to="/profile"
+                className="relative block rounded-full p-2 text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition-all active:scale-90"
+                aria-label="حسابي"
+                title="صفحة حسابي الشخصي"
+              >
+                <User size={22} />
+              </Link>
+            )}
 
             {/* Admin Portal Button */}
             {isAuthenticated && (
