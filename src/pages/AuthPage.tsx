@@ -577,62 +577,65 @@ export const AuthPage: React.FC = () => {
       </div>
 
       {/* ============================================================ */}
-      {/* RIGHT PANEL - ORANGE BRANDING PANEL (50% Narrower Sleek Sidebar) */}
       {/* ============================================================ */}
-      <div className="hidden lg:flex lg:w-2/12 xl:w-2/12 min-w-[260px] bg-gradient-to-b from-orange-500 via-orange-600 to-amber-600 text-white p-8 flex-col justify-between relative overflow-hidden shrink-0 shadow-2xl">
+      {/* RIGHT PANEL - ORANGE BRANDING PANEL */}
+      {/* ============================================================ */}
+      <div className="hidden lg:flex lg:w-3/12 xl:w-3/12 min-w-[280px] bg-gradient-to-b from-orange-500 via-orange-600 to-amber-600 text-white p-6 sm:p-8 flex-col justify-between relative overflow-hidden shrink-0 shadow-2xl">
         {/* Background Decorative Glow Circle */}
         <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-white/10 blur-3xl pointer-events-none" />
         <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl pointer-events-none" />
 
-        {/* Top Branding Badge & Guest Button */}
-        <div className="relative z-10 flex flex-col items-start gap-3">
-          <Link to="/" className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/20 w-full">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-orange-600 shadow-md shrink-0">
-              <ShoppingBag size={18} />
-            </div>
-            <span className="text-base font-black tracking-tight text-white">{data.settings.siteName || 'دُو ماركت'}</span>
-          </Link>
+        {/* Top Branding Badge (Static Header with Orange Square Logo) */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-orange-600 font-black text-xl shadow-md border border-white/20 shrink-0">
+            دُو
+          </div>
+          <div className="text-right">
+            <h3 className="text-base font-black text-white leading-none">{data.settings.siteName || 'دُو ماركت'}</h3>
+            <p className="text-[10px] font-bold text-orange-100 mt-1 opacity-90">{data.settings.siteTagline || 'تسوق بذكاء · أسعار ولا أروع'}</p>
+          </div>
+        </div>
 
-          {/* Guest Entry Button under Doo Market */}
+        {/* Campaign Welcome Text (Identical to user's image) */}
+        <div className="relative z-10 my-4 space-y-2 text-right border-y border-white/15 py-4">
+          <h2 className="text-xl font-black text-white leading-tight tracking-wide drop-shadow-sm">
+            كل احتياجاتك اليومية... في لحظة
+          </h2>
+          <p className="text-xs font-bold text-orange-100 leading-relaxed opacity-95">
+            اطلب من متاجرك المفضلة واختر طريقة الاستلام الأنسب لك
+          </p>
+        </div>
+
+        {/* Guest Entry Button under Campaign Header */}
+        <div className="relative z-10 my-2">
           <button
             type="button"
             onClick={handleGuestEntry}
-            className="flex items-center justify-center gap-2 rounded-2xl border border-white/30 bg-white/20 hover:bg-white hover:text-orange-600 backdrop-blur-md py-2.5 px-3 text-xs font-black text-white transition-all duration-300 active:scale-95 shadow-md w-full group"
+            className="flex items-center justify-center gap-2 rounded-2xl border border-white/30 bg-white/20 hover:bg-white hover:text-orange-600 backdrop-blur-md py-3 px-4 text-xs font-black text-white transition-all duration-300 active:scale-95 shadow-md w-full group"
           >
-            <Sparkles size={15} className="text-amber-300 group-hover:text-orange-600 transition-colors" />
-            <span>الدخول كزائر</span>
+            <Sparkles size={16} className="text-amber-300 group-hover:text-orange-600 transition-colors" />
+            <span>الدخول كزائر ✨</span>
           </button>
         </div>
 
         {/* Middle Feature Highlights */}
-        <div className="relative z-10 space-y-6 my-auto py-8 text-right">
-          <div className="space-y-2">
-            <h2 className="text-2xl font-black tracking-tight leading-tight">
-              {activeTab === 'login' ? 'مرحباً بعودتك' : 'انضم إلينا اليوم'}
-            </h2>
-            <p className="text-xs font-bold text-orange-100 leading-relaxed">
-              سجل دخولك للوصول إلى آلاف المنتجات والصفقات الحصرية بأسهل طريقة.
-            </p>
-          </div>
-
-          <div className="space-y-3 pt-2">
-            {[
-              { icon: Tag, text: 'آلاف المنتجات من بائعين موثوقين' },
-              { icon: Zap, text: 'صفقات وعروض حصرية كل يوم' },
-              { icon: Truck, text: 'شحن سريع لجميع المناطق' },
-              { icon: ShieldCheck, text: 'دفع آمن وحماية كاملة' }
-            ].map((feat, idx) => {
-              const IconComp = feat.icon;
-              return (
-                <div key={idx} className="flex items-center gap-2.5 text-xs font-bold text-white/90">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-white/15 border border-white/20 shadow-inner">
-                    <IconComp size={14} />
-                  </div>
-                  <span className="text-[11px] leading-tight">{feat.text}</span>
+        <div className="relative z-10 space-y-3 my-auto py-4 text-right">
+          {[
+            { icon: Tag, text: 'آلاف المنتجات من بائعين موثوقين' },
+            { icon: Zap, text: 'صفقات وعروض حصرية كل يوم' },
+            { icon: Truck, text: 'شحن سريع لجميع المناطق' },
+            { icon: ShieldCheck, text: 'دفع آمن وحماية كاملة' }
+          ].map((feat, idx) => {
+            const IconComp = feat.icon;
+            return (
+              <div key={idx} className="flex items-center gap-2.5 text-xs font-bold text-white/90">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-white/15 border border-white/20 shadow-inner">
+                  <IconComp size={14} />
                 </div>
-              );
-            })}
-          </div>
+                <span className="text-[11px] leading-tight">{feat.text}</span>
+              </div>
+            );
+          })}
         </div>
 
         {/* Bottom Footer Note */}
