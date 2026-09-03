@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   Mail,
   Lock,
@@ -30,10 +30,23 @@ import {
 
 export const AuthPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login, data, isAuthenticated, currentUser } = useShop();
 
+  const tabParam = searchParams.get('tab');
   // ----- State -----
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>(
+    tabParam === 'register' ? 'register' : 'login'
+  );
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'register') {
+      setActiveTab('register');
+    } else if (tab === 'login') {
+      setActiveTab('login');
+    }
+  }, [searchParams]);
 
   // Login form
   const [loginEmail, setLoginEmail] = useState('');
