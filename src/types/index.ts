@@ -1,7 +1,11 @@
 // src/types/index.ts
+// ============================================================
+// Doo Market - Unified Production Types Specification
+// React 19 + TypeScript + Supabase Auth + PostgreSQL + RLS + Guest Checkout
+// ============================================================
 
 // ============================================================
-// 1. أنواع الحالات والدفع المشتركة (Shared Enums/Types)
+// 1. Shared Enums & Identifiers
 // ============================================================
 
 export type OrderStatus =
@@ -20,15 +24,14 @@ export type PaymentMethod =
   | 'bank_transfer';
 
 /**
- * ✅ موحّد مع auth.types.ts
- * شامل كل الأدوار الممكنة
+ * ✅ User Roles (database/profile roles)
+ * Guest is an unauthenticated state (user === null), not a stored database role.
  */
 export type UserRole =
   | 'buyer'
   | 'admin'
   | 'manager'
-  | 'support'
-  | 'guest';
+  | 'support';
 
 export type SectionType =
   | 'flash'
@@ -51,6 +54,11 @@ export type ErrorLevel =
   | 'error'
   | 'critical';
 
+/**
+ * ✅ Unified String Identifier for all Supabase UUIDs/IDs
+ */
+export type EntityId = string;
+
 // ============================================================
 // 2. Utility Types
 // ============================================================
@@ -72,14 +80,12 @@ export type WithOrder = {
   order: number;
 };
 
-export type ID = string | number;
-
 // ============================================================
-// 3. أنواع المتجر الأساسية
+// 3. Core Store Types
 // ============================================================
 
 export interface Category extends Partial<WithTimestamps> {
-  id: string;
+  id: EntityId;
   name: string;
   nameEn: string;
   icon: string;
@@ -87,16 +93,19 @@ export interface Category extends Partial<WithTimestamps> {
   color: string;
   order: number;
   active: boolean;
-  parentId?: string;
+  parentId?: EntityId;
   children?: Category[];
   metaTitle?: string;
   metaDescription?: string;
 }
 
+/**
+ * ✅ Optional color and size for non-clothing variants
+ */
 export interface ProductVariant {
-  id: string;
-  color: string;
-  size: string;
+  id: EntityId;
+  color?: string;
+  size?: string;
   stock: number;
   sku?: string;
   price?: number;
@@ -111,7 +120,7 @@ export interface ProductVariant {
 }
 
 export interface Product extends Partial<WithTimestamps> {
-  id: string;
+  id: EntityId;
   name: string;
   nameEn?: string;
   description: string;
@@ -120,7 +129,7 @@ export interface Product extends Partial<WithTimestamps> {
   originalPrice: number;
   costPrice?: number;
   images: string[];
-  categoryId: string;
+  categoryId: EntityId;
   rating: number;
   reviews: number;
   sold: number;
@@ -161,7 +170,7 @@ export interface Product extends Partial<WithTimestamps> {
 }
 
 export interface Banner {
-  id: string;
+  id: EntityId;
   title: string;
   subtitle: string;
   image: string;
@@ -178,13 +187,13 @@ export interface Banner {
 }
 
 export interface Section {
-  id: string;
+  id: EntityId;
   type: SectionType;
   title: string;
   subtitle: string;
   active: boolean;
   order: number;
-  categoryId?: string;
+  categoryId?: EntityId;
   promoText?: string;
   promoColor?: string;
   bannerImage?: string;
@@ -193,7 +202,7 @@ export interface Section {
   bannerButtonText?: string;
   bannerLink?: string;
   showBanner?: boolean;
-  productIds?: string[];
+  productIds?: EntityId[];
   limit?: number;
   layout?: 'grid' | 'slider' | 'list';
   backgroundColor?: string;
@@ -248,12 +257,12 @@ export interface StoreSettings {
 }
 
 // ============================================================
-// 4. أنواع السلة والطلبات
+// 4. Cart & Order Types (Retaining UI Selection Attributes)
 // ============================================================
 
 export interface CartItem {
-  productId: string;
-  variantId?: string;
+  productId: EntityId;
+  variantId?: EntityId;
   selectedColor?: string;
   selectedSize?: string;
   quantity: number;
@@ -267,8 +276,8 @@ export interface CartItem {
 }
 
 export interface OrderItem {
-  productId: string;
-  variantId?: string;
+  productId: EntityId;
+  variantId?: EntityId;
   name: string;
   price: number;
   originalPrice?: number;
@@ -284,9 +293,9 @@ export interface OrderItem {
 }
 
 export interface Order {
-  id: string;
+  id: EntityId;
   orderNumber?: string;
-  userId?: string;
+  userId?: EntityId;
   guestEmail?: string;
   guestPhone?: string;
   items: OrderItem[];
@@ -336,11 +345,11 @@ export interface Order {
 }
 
 // ============================================================
-// 5. أنواع المستخدمين والعناوين والمراجعات
+// 5. User Profiles, Addresses & Support Tickets
 // ============================================================
 
 export interface User extends Partial<WithTimestamps> {
-  id: string;
+  id: EntityId;
   name: string;
   email: string;
   phone: string;
@@ -366,8 +375,8 @@ export interface User extends Partial<WithTimestamps> {
 }
 
 export interface Address extends Partial<WithTimestamps> {
-  id: string;
-  userId: string;
+  id: EntityId;
+  userId: EntityId;
   name: string;
   city: string;
   district?: string;
@@ -381,9 +390,9 @@ export interface Address extends Partial<WithTimestamps> {
 }
 
 export interface Review extends Partial<WithTimestamps> {
-  id: string;
-  productId: string;
-  userId?: string;
+  id: EntityId;
+  productId: EntityId;
+  userId?: EntityId;
   userName: string;
   userAvatar?: string;
   rating: number;
@@ -399,22 +408,22 @@ export interface Review extends Partial<WithTimestamps> {
 }
 
 export interface Reservation {
-  id: string;
-  productId: string;
-  variantId?: string;
-  userId: string;
+  id: EntityId;
+  productId: EntityId;
+  variantId?: EntityId;
+  userId: EntityId;
   quantity: number;
   expiresAt: string;
   createdAt: string;
 }
 
 // ============================================================
-// 6. أنواع الإشعارات والدعم
+// 6. Notifications & Support Tickets (Guest Compatible)
 // ============================================================
 
 export interface Notification {
-  id: string;
-  userId: string;
+  id: EntityId;
+  userId: EntityId;
   type: NotificationType;
   title: string;
   message: string;
@@ -425,7 +434,7 @@ export interface Notification {
 }
 
 export interface SupportTicketMessage {
-  id: string;
+  id: EntityId;
   sender: string;
   message: string;
   timestamp: string;
@@ -433,9 +442,11 @@ export interface SupportTicketMessage {
 }
 
 export interface SupportTicket extends Partial<WithTimestamps> {
-  id: string;
-  userId: string;
-  userEmail: string;
+  id: EntityId;
+  userId?: EntityId;
+  guestEmail?: string;
+  guestPhone?: string;
+  userEmail?: string;
   subject: string;
   message: string;
   status: 'open' | 'in_progress' | 'resolved' | 'closed';
@@ -446,7 +457,7 @@ export interface SupportTicket extends Partial<WithTimestamps> {
 }
 
 // ============================================================
-// 7. هيكل بيانات المتجر الشامل
+// 7. Full Shop Data State
 // ============================================================
 
 export interface ShopData {
@@ -465,7 +476,7 @@ export interface ShopData {
 }
 
 // ============================================================
-// 8. أنواع API والاستجابات
+// 8. API Response Interfaces
 // ============================================================
 
 export interface ApiResponse<T = unknown> {
@@ -493,7 +504,7 @@ export interface PaginatedResponse<T> {
 }
 
 export interface UploadedFile {
-  id: string;
+  id: EntityId;
   url: string;
   name: string;
   size: number;
@@ -502,7 +513,7 @@ export interface UploadedFile {
 }
 
 // ============================================================
-// 9. أنواع نماذج المصادقة (React Hook Form + Zod)
+// 9. Auth Forms & Validation Types
 // ============================================================
 
 export interface LoginFormData {
