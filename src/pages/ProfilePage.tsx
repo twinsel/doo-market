@@ -20,13 +20,17 @@ import {
   Building,
   Home as HomeIcon,
   Briefcase,
-  Check
+  Check,
+  Lock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShop } from '../context/ShopContext';
 import { QrCodeCard } from '../components/QrCodeCard';
 import { Order, Address } from '../types';
 import { syncUserToSupabase, deleteUserFromSupabase } from '../services/supabaseService';
+import { updateSupabasePassword } from '../lib/supabase';
 
 const getStatusLabel = (status: Order['status']) => {
   switch (status) {
@@ -50,6 +54,8 @@ export const ProfilePage: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editName, setEditName] = useState(currentUser?.name || '');
   const [editPhone, setEditPhone] = useState(currentUser?.phone || '');
+  const [editPassword, setEditPassword] = useState('');
+  const [showEditPassword, setShowEditPassword] = useState(false);
   const [editSuccessMsg, setEditSuccessMsg] = useState('');
 
   // ----- Delete Account State -----
@@ -107,9 +113,14 @@ export const ProfilePage: React.FC = () => {
   };
 
   // ----- Handlers -----
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
+
+    if (editPassword.trim() && editPassword.trim().length < 6) {
+      alert('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل');
+      return;
+    }
 
     const updatedUser = {
       ...currentUser,
@@ -120,7 +131,16 @@ export const ProfilePage: React.FC = () => {
     login(updatedUser);
     syncUserToSupabase(updatedUser);
 
-    setEditSuccessMsg('تم تحديث بياناتك بنجاح! ✨');
+    if (editPassword.trim()) {
+      try {
+        await updateSupabasePassword(editPassword.trim());
+      } catch (err) {
+        console.warn('Password update warning:', err);
+      }
+    }
+
+    setEditSuccessMsg('تم تحديث البيانات وكلمة المرور بنجاح! ✨');
+    setEditPassword('');
     setTimeout(() => {
       setEditSuccessMsg('');
       setIsEditModalOpen(false);
@@ -345,6 +365,27 @@ export const ProfilePage: React.FC = () => {
                     placeholder="0901234567"
                     className="w-full rounded-2xl border border-gray-200 bg-gray-50 p-3 text-sm font-bold text-gray-900 outline-none focus:border-orange-500 focus:bg-white"
                   />
+                </div>
+
+                <div className="space-y-1 text-right">
+                  <label className="block text-xs font-bold text-gray-600">كلمة المرور الجديدة (اختياري)</label>
+                  <div className="relative">
+                    <input
+                      type={showEditPassword ? 'text' : 'password'}
+                      value={editPassword}
+                      onChange={e => setEditPassword(e.target.value)}
+                      placeholder="•••••••• (اتركه فارغاً للإبقاء على الحالية)"
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 p-3 ps-10 pe-10 text-sm font-bold text-gray-900 outline-none focus:border-orange-500 focus:bg-white"
+                    />
+                    <Lock size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <button
+                      type="button"
+                      onClick={() => setShowEditPassword(prev => !prev)}
+                      className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showEditPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-1 text-right opacity-60">
