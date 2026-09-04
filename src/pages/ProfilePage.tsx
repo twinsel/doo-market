@@ -135,31 +135,43 @@ export const ProfilePage: React.FC = () => {
     const targetId = currentUser.id;
 
     try {
-      // 🔑 Sign out from Supabase Auth FIRST
-      await supabase.auth.signOut();
+      // 1. Sign out from Supabase Auth FIRST
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) console.error('SignOut warning:', signOutError.message);
 
-      // Delete user data from Supabase
-      await deleteUserFromSupabase(targetId);
+      // 2. Delete user data from Supabase DB
+      await deleteUserFromSupabase(targetId).catch(() => {});
       deleteUser(targetId);
 
-      // Wipe localStorage
+      // 3. Clear ALL local storage & session storage & cookies
       try {
         localStorage.clear();
+        sessionStorage.clear();
+        document.cookie.split(";").forEach(c => {
+          document.cookie = c.replace(/^ +/, "")
+            .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
       } catch {}
 
       setIsDeleting(false);
       setIsDeleteModalOpen(false);
 
-      window.location.href = `${window.location.origin}/#/auth?tab=register`;
+      // 4. Force hard reload navigation
+      window.location.replace(`${window.location.origin}/#/auth?tab=register`);
+      window.location.reload();
 
     } catch (e) {
       console.error('Delete account error:', e);
       setIsDeleting(false);
-      await supabase.auth.signOut().catch(() => {});
+
       try {
+        await supabase.auth.signOut().catch(() => {});
         localStorage.clear();
+        sessionStorage.clear();
       } catch {}
+
       window.location.href = `${window.location.origin}/#/auth?tab=register`;
+      setTimeout(() => window.location.reload(), 100);
     }
   };
 
