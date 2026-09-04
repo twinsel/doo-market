@@ -229,6 +229,36 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- 10. RPC Functions for Complete User Deletion & Auth Wiping
 -- ============================================================
 
+-- Delete own account (Strictly operates on auth.uid())
+CREATE OR REPLACE FUNCTION public.delete_own_account()
+RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  DELETE FROM public.users WHERE id = auth.uid();
+  DELETE FROM public.user_roles WHERE user_id = auth.uid();
+  DELETE FROM auth.users WHERE id = auth.uid();
+END;
+$$;
+
+-- Admin delete user by target_user_id
+CREATE OR REPLACE FUNCTION public.admin_delete_user(target_user_id UUID)
+RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ) THEN
+    RAISE EXCEPTION 'Only authorized admins can delete users';
+  END IF;
+
+  DELETE FROM public.users WHERE id = target_user_id;
+  DELETE FROM public.user_roles WHERE user_id = target_user_id;
+  DELETE FROM auth.users WHERE id = target_user_id;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.delete_user_completely(p_email TEXT)
 RETURNS VOID AS $$
 DECLARE
@@ -239,8 +269,6 @@ BEGIN
   IF v_user_id IS NOT NULL THEN
     DELETE FROM public.users WHERE id = v_user_id OR LOWER(email) = LOWER(p_email);
     DELETE FROM public.user_roles WHERE user_id = v_user_id;
-    DELETE FROM public.carts WHERE user_id = v_user_id;
-    DELETE FROM public.wishlists WHERE user_id = v_user_id;
     DELETE FROM auth.users WHERE id = v_user_id;
   ELSE
     DELETE FROM public.users WHERE LOWER(email) = LOWER(p_email);
@@ -274,8 +302,9 @@ CREATE POLICY "Users can update own profile" ON public.users
 CREATE POLICY "Users can insert own profile" ON public.users
   FOR INSERT WITH CHECK (auth.uid() = id);
 
-CREATE POLICY "Admins can delete profiles" ON public.users
+CREATE POLICY "Users or Admins can delete own profile" ON public.users
   FOR DELETE USING (
+    auth.uid() = id OR
     EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin')
   );
 
@@ -301,4 +330,6 @@ GRANT EXECUTE ON FUNCTION public.check_login_attempts(TEXT) TO anon, authenticat
 GRANT EXECUTE ON FUNCTION public.record_failed_attempt(TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reset_attempts(TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_set_role(UUID, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.delete_own_account() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_delete_user(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.delete_user_completely(TEXT) TO anon, authenticated;

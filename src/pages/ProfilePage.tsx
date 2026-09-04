@@ -26,7 +26,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useShop } from '../context/ShopContext';
 import { QrCodeCard } from '../components/QrCodeCard';
 import { Order, Address } from '../types';
-import { syncUserToSupabase, deleteUserFromSupabase } from '../services/supabaseService';
+import { syncUserToSupabase, deleteUserFromSupabase, deleteOwnAccount } from '../services/supabaseService';
 import { supabase, updateSupabasePassword } from '../lib/supabase';
 
 const getStatusLabel = (status: Order['status']) => {
@@ -135,11 +135,10 @@ export const ProfilePage: React.FC = () => {
     const targetId = currentUser.id;
 
     try {
-      // 1. Sign out from Supabase Auth FIRST
-      const { error: signOutError } = await supabase.auth.signOut();
-      if (signOutError) console.error('SignOut warning:', signOutError.message);
+      // 1. Call RPC function deleteOwnAccount() to permanently delete account from auth.users & public tables
+      await deleteOwnAccount();
 
-      // 2. Delete user data from Supabase DB
+      // 2. Fallback delete from ShopContext and Supabase DB
       await deleteUserFromSupabase(targetId).catch(() => {});
       deleteUser(targetId);
 

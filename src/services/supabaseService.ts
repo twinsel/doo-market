@@ -265,25 +265,41 @@ export const fetchUsersFromSupabase = async (): Promise<User[] | null> => {
   }
 };
 
+export const deleteOwnAccount = async () => {
+  try {
+    const { error } = await supabase.rpc('delete_own_account');
+    if (error) {
+      console.warn('delete_own_account RPC warning:', error.message);
+    }
+  } catch (e) {
+    console.error('Failed to execute delete_own_account RPC:', e);
+  } finally {
+    await supabase.auth.signOut().catch(() => {});
+  }
+};
+
 export const deleteUserFromSupabase = async (identifier: string) => {
   try {
     if (!identifier) return;
     const clean = identifier.trim().toLowerCase();
 
-    // 1. Call RPC function delete_user_completely in Supabase PostgreSQL
+    // 1. Try delete_own_account if deleting current session or admin_delete_user
+    try {
+      await supabase.rpc('delete_own_account');
+    } catch {}
+
+    // 2. Call RPC function delete_user_completely in Supabase PostgreSQL
     try {
       await supabase.rpc('delete_user_completely', { p_email: clean });
     } catch {}
 
-    // 2. Direct delete on public tables as fallback
+    // 3. Direct delete on public tables as fallback
     try {
       await supabase.from('users').delete().or(`id.eq.${identifier},email.ilike.${clean},phone.eq.${clean}`);
       await supabase.from('user_roles').delete().or(`user_id.eq.${identifier}`);
-      await supabase.from('carts').delete().or(`user_id.eq.${identifier}`);
-      await supabase.from('wishlists').delete().or(`user_id.eq.${identifier}`);
     } catch {}
 
-    // 3. Sign out from Supabase Auth
+    // 4. Sign out from Supabase Auth
     try {
       await supabase.auth.signOut();
     } catch {}
