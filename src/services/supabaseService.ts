@@ -270,20 +270,38 @@ export const deleteUserFromSupabase = async (identifier: string) => {
     if (!identifier) return;
     const clean = identifier.trim().toLowerCase();
 
-    // 1. Delete from users table by id or email or phone
-    await supabase.from('users').delete().or(`id.eq.${identifier},email.ilike.${clean},phone.eq.${clean}`);
+    // 1. Delete from users table
+    await supabase
+      .from('users')
+      .delete()
+      .or(`id.eq.${identifier},email.ilike.${clean},phone.eq.${clean}`);
 
     // 2. Delete from user_roles
-    await supabase.from('user_roles').delete().or(`user_id.eq.${identifier}`);
+    await supabase
+      .from('user_roles')
+      .delete()
+      .or(`user_id.eq.${identifier}`);
 
-    // 3. Delete from carts & wishlists
-    await supabase.from('carts').delete().or(`user_id.eq.${identifier}`);
-    await supabase.from('wishlists').delete().or(`user_id.eq.${identifier}`);
+    // 3. Delete from orders
+    await supabase
+      .from('orders')
+      .delete()
+      .or(`customer->>phone.eq.${clean},customer->>email.ilike.${clean}`);
 
-    // 4. Sign out from Supabase Auth
-    await supabase.auth.signOut().catch(() => {});
+    // 4. Delete from carts & wishlists
+    await supabase
+      .from('carts')
+      .delete()
+      .or(`user_id.eq.${identifier}`);
+
+    await supabase
+      .from('wishlists')
+      .delete()
+      .or(`user_id.eq.${identifier}`);
+
   } catch (e) {
     console.error('Failed to delete user from Supabase:', e);
+    throw e;
   }
 };
 

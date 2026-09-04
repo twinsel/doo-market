@@ -27,6 +27,7 @@ import { useShop } from '../context/ShopContext';
 import { QrCodeCard } from '../components/QrCodeCard';
 import { Order, Address } from '../types';
 import { syncUserToSupabase, deleteUserFromSupabase } from '../services/supabaseService';
+import { supabase, updateSupabasePassword } from '../lib/supabase';
 
 const getStatusLabel = (status: Order['status']) => {
   switch (status) {
@@ -132,19 +133,18 @@ export const ProfilePage: React.FC = () => {
     setIsDeleting(true);
 
     const targetId = currentUser.id;
-    const targetEmail = currentUser.email;
 
     try {
-      // 1. Delete from Supabase DB
-      await deleteUserFromSupabase(targetId);
-      if (targetEmail) {
-        await deleteUserFromSupabase(targetEmail);
-      }
+      // 1. Sign out from Supabase Auth FIRST while token is active
+      await supabase.auth.signOut().catch(() => {});
 
-      // 2. Delete from ShopContext
+      // 2. Delete user data from Supabase DB
+      await deleteUserFromSupabase(targetId).catch(() => {});
+
+      // 3. Delete from ShopContext
       deleteUser(targetId);
 
-      // 3. Clear all Local Storage items completely
+      // 4. Wipe localStorage completely
       try {
         localStorage.clear();
       } catch {}
@@ -152,15 +152,23 @@ export const ProfilePage: React.FC = () => {
       setIsDeleting(false);
       setIsDeleteModalOpen(false);
 
-      // 4. Force reload / redirect to auth register page freshly
-      window.location.href = `${window.location.origin}/#/auth?tab=register`;
+      // 5. Short timeout then redirect to fresh registration page
+      setTimeout(() => {
+        window.location.href = `${window.location.origin}/#/auth?tab=register`;
+      }, 100);
+
     } catch (e) {
       console.error('Delete account error:', e);
       setIsDeleting(false);
       try {
         localStorage.clear();
       } catch {}
-      window.location.href = `${window.location.origin}/#/auth?tab=register`;
+
+      await supabase.auth.signOut().catch(() => {});
+
+      setTimeout(() => {
+        window.location.href = `${window.location.origin}/#/auth?tab=register`;
+      }, 100);
     }
   };
 
