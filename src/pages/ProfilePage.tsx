@@ -131,17 +131,36 @@ export const ProfilePage: React.FC = () => {
     if (!currentUser) return;
     setIsDeleting(true);
 
+    const targetId = currentUser.id;
+    const targetEmail = currentUser.email;
+
     try {
-      await deleteUserFromSupabase(currentUser.id);
-      deleteUser(currentUser.id);
+      // 1. Delete from Supabase DB
+      await deleteUserFromSupabase(targetId);
+      if (targetEmail) {
+        await deleteUserFromSupabase(targetEmail);
+      }
+
+      // 2. Delete from ShopContext
+      deleteUser(targetId);
+
+      // 3. Clear all Local Storage items completely
+      try {
+        localStorage.clear();
+      } catch {}
+
       setIsDeleting(false);
       setIsDeleteModalOpen(false);
-      navigate('/auth');
+
+      // 4. Force reload / redirect to auth register page freshly
+      window.location.href = `${window.location.origin}/#/auth?tab=register`;
     } catch (e) {
       console.error('Delete account error:', e);
       setIsDeleting(false);
-      logout();
-      navigate('/auth');
+      try {
+        localStorage.clear();
+      } catch {}
+      window.location.href = `${window.location.origin}/#/auth?tab=register`;
     }
   };
 

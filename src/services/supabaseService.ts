@@ -270,13 +270,17 @@ export const deleteUserFromSupabase = async (identifier: string) => {
     if (!identifier) return;
     const clean = identifier.trim().toLowerCase();
 
-    // 1. Delete from users table by id or email
-    await supabase.from('users').delete().or(`id.eq.${identifier},email.ilike.${clean}`);
+    // 1. Delete from users table by id or email or phone
+    await supabase.from('users').delete().or(`id.eq.${identifier},email.ilike.${clean},phone.eq.${clean}`);
 
     // 2. Delete from user_roles
-    await supabase.from('user_roles').delete().eq('user_id', identifier);
+    await supabase.from('user_roles').delete().or(`user_id.eq.${identifier}`);
 
-    // 3. Sign out from Supabase Auth
+    // 3. Delete from carts & wishlists
+    await supabase.from('carts').delete().or(`user_id.eq.${identifier}`);
+    await supabase.from('wishlists').delete().or(`user_id.eq.${identifier}`);
+
+    // 4. Sign out from Supabase Auth
     await supabase.auth.signOut().catch(() => {});
   } catch (e) {
     console.error('Failed to delete user from Supabase:', e);
