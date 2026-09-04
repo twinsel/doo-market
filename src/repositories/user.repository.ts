@@ -39,7 +39,8 @@ export class SupabaseUserRepository implements IUserRepository {
         .single();
 
       if (error || !data) return null;
-      return this.mapToUser(data);
+      const role = await this.getUserRole(id);
+      return this.mapToUser(data, role);
     } catch {
       return null;
     }
@@ -54,7 +55,8 @@ export class SupabaseUserRepository implements IUserRepository {
         .single();
 
       if (error || !data) return null;
-      return this.mapToUser(data);
+      const role = await this.getUserRole(data.id);
+      return this.mapToUser(data, role);
     } catch {
       return null;
     }
@@ -69,7 +71,8 @@ export class SupabaseUserRepository implements IUserRepository {
         .single();
 
       if (error || !data) return null;
-      return this.mapToUser(data);
+      const role = await this.getUserRole(data.id);
+      return this.mapToUser(data, role);
     } catch {
       return null;
     }
@@ -92,10 +95,6 @@ export class SupabaseUserRepository implements IUserRepository {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (options?.role) {
-        query = query.eq('role', options.role);
-      }
-
       if (options?.limit) {
         query = query.limit(options.limit);
       }
@@ -107,7 +106,16 @@ export class SupabaseUserRepository implements IUserRepository {
       const { data, error } = await query;
       if (error || !data) return [];
 
-      return data.map(this.mapToUser);
+      const mapped = await Promise.all(data.map(async item => {
+        const role = await this.getUserRole(item.id);
+        return this.mapToUser(item, role);
+      }));
+
+      if (options?.role) {
+        return mapped.filter(u => u.role === options.role);
+      }
+
+      return mapped;
     } catch {
       return [];
     }
@@ -125,7 +133,10 @@ export class SupabaseUserRepository implements IUserRepository {
         .limit(20);
 
       if (error || !data) return [];
-      return data.map(this.mapToUser);
+      return Promise.all(data.map(async item => {
+        const role = await this.getUserRole(item.id);
+        return this.mapToUser(item, role);
+      }));
     } catch {
       return [];
     }
@@ -153,8 +164,11 @@ export class SupabaseUserRepository implements IUserRepository {
         name: newUser.name,
         email: newUser.email,
         phone: newUser.phone,
-        role: newUser.role,
         avatar: newUser.avatar,
+      });
+      await supabase.from('user_roles').upsert({
+        user_id: newUser.id,
+        role: newUser.role,
       });
     } catch (e) {
       console.warn('Repository create warning:', e);
@@ -194,7 +208,10 @@ export class SupabaseUserRepository implements IUserRepository {
         .eq('id', id)
         .select()
         .single();
-      if (data) return this.mapToUser(data);
+      if (data) {
+        const role = await this.getUserRole(id);
+        return this.mapToUser(data, role);
+      }
     } catch (e) {
       console.warn('Repository update warning:', e);
     }
@@ -232,7 +249,7 @@ export class SupabaseUserRepository implements IUserRepository {
     const user = await this.getCurrentUser();
     return {
       user,
-      isAuthenticated: !!user,
+      isAuthenticated: !!user && !user.id?.startsWith('guest-'),
     };
   }
 
@@ -244,15 +261,15 @@ export class SupabaseUserRepository implements IUserRepository {
 
   async getStats(): Promise<{ total: number; admins: number; buyers: number; guests: number }> {
     try {
-      const [totalResult, adminResult, buyerResult] = await Promise.all([
+      const [totalResult, buyerResult, roleResult] = await Promise.all([
         supabase.from('users').select('id', { count: 'exact', head: true }),
-        supabase.from('users').select('id', { count: 'exact', head: true }).eq('role', 'admin'),
-        supabase.from('users').select('id', { count: 'exact', head: true }).eq('role', 'buyer'),
+        supabase.from('user_roles').select('id', { count: 'exact', head: true }).eq('role', 'buyer'),
+        supabase.from('user_roles').select('id', { count: 'exact', head: true }).eq('role', 'admin'),
       ]);
 
       return {
         total: totalResult.count || 0,
-        admins: adminResult.count || 0,
+        admins: roleResult.count || 0,
         buyers: buyerResult.count || 0,
         guests: 0,
       };
@@ -271,13 +288,28 @@ export class SupabaseUserRepository implements IUserRepository {
     };
   }
 
-  private mapToUser(data: any): User {
+  private async getUserRole(userId: string): Promise<UserRole> {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+
+      if (error || !data) return 'buyer';
+      return data.role as UserRole;
+    } catch {
+      return 'buyer';
+    }
+  }
+
+  private mapToUser(data: any, role: UserRole = 'buyer'): User {
     return {
       id: data.id,
       name: data.name,
       email: data.email,
       phone: data.phone || '',
-      role: data.role || 'buyer',
+      role: role,
       avatar: data.avatar,
       bio: data.bio,
       birthDate: data.birth_date,

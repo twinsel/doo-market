@@ -8,7 +8,7 @@ import { ENV } from '../config/env';
 import { AUTH_MESSAGES } from '../constants/auth-messages';
 
 // ============================================================
-// 1. خدمة المصادقة - AuthService (OWASP Compliant 10/10)
+// 1. خدمة المصادقة - AuthService (Strict Security OWASP 10/10)
 // ============================================================
 
 export class AuthService {
@@ -52,7 +52,7 @@ export class AuthService {
         name: profile?.name || data.user.user_metadata?.name || email.split('@')[0] || 'مستخدم',
         email: data.user.email || email,
         phone: profile?.phone || data.user.user_metadata?.phone || '',
-        role: role || (email.includes('admin') ? 'admin' : 'buyer'),
+        role: role || 'buyer',
         avatar: profile?.avatar || data.user.user_metadata?.avatar,
         createdAt: data.user.created_at,
       };
@@ -98,18 +98,17 @@ export class AuthService {
       }
 
       const userId = authData.user.id;
-      const isAdmin = data.email.toLowerCase().includes('admin') || data.email.toLowerCase().includes('مدير');
       const newUser: User = {
         id: userId,
         name: data.name.trim() || 'مستخدم',
         email: data.email.trim(),
         phone: (data.phone || '').trim(),
-        role: isAdmin ? 'admin' : 'buyer',
+        role: 'buyer',
         createdAt: new Date().toISOString(),
       };
 
       await this.createUserProfile(userId, data);
-      await this.setUserRole(userId, newUser.role);
+      await this.setUserRole(userId, 'buyer');
 
       return newUser;
 
@@ -183,7 +182,7 @@ export class AuthService {
       name: profile?.name || user.user_metadata?.name || 'مستخدم',
       email: user.email || '',
       phone: profile?.phone || user.user_metadata?.phone || '',
-      role: role || (user.email?.includes('admin') ? 'admin' : 'buyer'),
+      role: role || 'buyer',
       avatar: profile?.avatar || user.user_metadata?.avatar,
       createdAt: user.created_at,
     };

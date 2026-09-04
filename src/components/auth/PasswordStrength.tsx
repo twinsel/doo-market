@@ -13,7 +13,7 @@ interface PasswordStrengthProps {
 }
 
 // ============================================================
-// 2. المكون الرئيسي
+// 2. المكون الرئيسي (مع شريط القوة المتكامل 10/10)
 // ============================================================
 
 export const PasswordStrength: React.FC<PasswordStrengthProps> = ({
@@ -75,7 +75,7 @@ export const PasswordStrength: React.FC<PasswordStrengthProps> = ({
         </span>
       </div>
 
-      {/* متطلبات كلمة المرور */}
+      {/* متطلبات كلمة المرور الأربعة */}
       <div className="grid grid-cols-2 gap-1 text-[10px] font-bold text-slate-500">
         <div className="flex items-center gap-1">
           <span className={password.length >= 8 ? 'text-emerald-400' : ''}>
@@ -100,6 +100,12 @@ export const PasswordStrength: React.FC<PasswordStrengthProps> = ({
             {/[0-9]/.test(password) ? '✅' : '⬜'}
           </span>
           رقم (0-9)
+        </div>
+        <div className="flex items-center gap-1 col-span-2">
+          <span className={/[^A-Za-z0-9]/.test(password) ? 'text-emerald-400' : ''}>
+            {/[^A-Za-z0-9]/.test(password) ? '✅' : '⬜'}
+          </span>
+          رمز خاص (!@#$%^&*)
         </div>
       </div>
     </div>

@@ -1,8 +1,8 @@
 // src/config/env.ts
 
 export const ENV = {
-  SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL || 'https://plqfewlztgsojgvmygsl.supabase.co',
-  SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_mU_PNBeM9V3oi4IrsnVmWw_3w9NBbKh',
+  SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL || '',
+  SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
   APP_NAME: import.meta.env.VITE_APP_NAME || 'دُو ماركت',
   APP_URL: import.meta.env.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://doo-market.vercel.app'),
   MAX_LOGIN_ATTEMPTS: Number(import.meta.env.VITE_MAX_LOGIN_ATTEMPTS) || 5,
@@ -15,5 +15,5 @@ export const ENV = {
 } as const;
 
 if (!ENV.SUPABASE_URL || !ENV.SUPABASE_ANON_KEY) {
-  console.warn('⚠️ Supabase credentials check: Ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in environment variables.');
+  console.warn('⚠️ Missing Supabase environment variables. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.');
 }
