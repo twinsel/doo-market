@@ -143,9 +143,11 @@ export class SupabaseUserRepository implements IUserRepository {
   }
 
   async create(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
+    const tempPassword = this.generateRandomPassword();
+
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: userData.email,
-      password: 'TempPassword123!',
+      password: tempPassword,
       options: {
         data: {
           name: userData.name,
@@ -154,13 +156,17 @@ export class SupabaseUserRepository implements IUserRepository {
       },
     });
 
-    const userId = authData?.user?.id || 'usr-' + Date.now();
+    if (authError || !authData?.user) {
+      throw new Error(`فشل إنشاء المستخدم: ${authError?.message || ''}`);
+    }
+
+    const userId = authData.user.id;
     const newUser: User = {
       id: userId,
       name: userData.name,
       email: userData.email,
       phone: userData.phone || '',
-      role: userData.role || 'buyer',
+      role: 'buyer',
       avatar: userData.avatar,
       bio: userData.bio,
       birthDate: userData.birthDate,
@@ -169,23 +175,16 @@ export class SupabaseUserRepository implements IUserRepository {
       createdAt: new Date().toISOString(),
     };
 
-    try {
-      await supabase.from('users').upsert({
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        phone: newUser.phone,
-        avatar: newUser.avatar,
-      });
-      await supabase.from('user_roles').upsert({
-        user_id: newUser.id,
-        role: newUser.role,
-      });
-    } catch (e) {
-      console.warn('Repository create warning:', e);
-    }
-
     return newUser;
+  }
+
+  private generateRandomPassword(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < 16; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
   }
 
   async findOrCreate(email: string, userData: Partial<User>): Promise<User> {
@@ -233,9 +232,10 @@ export class SupabaseUserRepository implements IUserRepository {
 
   async updateRole(id: string, role: UserRole): Promise<User> {
     try {
-      await supabase
-        .from('user_roles')
-        .upsert({ user_id: id, role });
+      await supabase.rpc('admin_set_role', {
+        target_user_id: id,
+        new_role: role,
+      });
     } catch (e) {
       console.warn('Update role warning:', e);
     }
