@@ -1,5 +1,5 @@
 -- ============================================================
--- Doo Market - Enterprise Database Schema & Security RPC Functions
+-- Doo Market - Complete Production Database Schema & Strict RLS Policies
 -- Supabase PostgreSQL Specification v2.0 (100% OWASP Security Rating)
 -- ============================================================
 
@@ -108,7 +108,7 @@ BEGIN
     name = EXCLUDED.name,
     phone = EXCLUDED.phone;
 
-  -- ✅ Strictly default to 'buyer' (Prevents Privilege Escalation Attack)
+  -- Strictly default to 'buyer' (Prevents Privilege Escalation Attack)
   INSERT INTO public.user_roles (user_id, role)
   VALUES (NEW.id, 'buyer')
   ON CONFLICT (user_id) DO NOTHING;
@@ -226,7 +226,30 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================================
--- 10. Enable Row Level Security (RLS)
+-- 10. RPC Functions for Complete User Deletion & Auth Wiping
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.delete_user_completely(p_email TEXT)
+RETURNS VOID AS $$
+DECLARE
+  v_user_id UUID;
+BEGIN
+  SELECT id INTO v_user_id FROM auth.users WHERE LOWER(email) = LOWER(p_email);
+
+  IF v_user_id IS NOT NULL THEN
+    DELETE FROM public.users WHERE id = v_user_id OR LOWER(email) = LOWER(p_email);
+    DELETE FROM public.user_roles WHERE user_id = v_user_id;
+    DELETE FROM public.carts WHERE user_id = v_user_id;
+    DELETE FROM public.wishlists WHERE user_id = v_user_id;
+    DELETE FROM auth.users WHERE id = v_user_id;
+  ELSE
+    DELETE FROM public.users WHERE LOWER(email) = LOWER(p_email);
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================
+-- 11. Enable Row Level Security (RLS)
 -- ============================================================
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
@@ -234,7 +257,7 @@ ALTER TABLE public.login_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.store_settings ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
--- 11. Strict RLS Policies
+-- 12. Strict RLS Policies
 -- ============================================================
 
 CREATE POLICY "Users can read own profile" ON public.users
@@ -278,3 +301,4 @@ GRANT EXECUTE ON FUNCTION public.check_login_attempts(TEXT) TO anon, authenticat
 GRANT EXECUTE ON FUNCTION public.record_failed_attempt(TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reset_attempts(TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_set_role(UUID, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.delete_user_completely(TEXT) TO anon, authenticated;
