@@ -274,51 +274,16 @@ export const ProfilePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Action Buttons: Edit, Admin Portal, Logout, Delete Account */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Edit Profile Button */}
-          <button
-            onClick={() => {
-              setEditName(currentUser.name);
-              setEditPhone(currentUser.phone || '');
-              setIsEditModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 rounded-2xl border border-orange-200 bg-orange-50 px-3.5 py-2 text-xs font-bold text-orange-600 hover:bg-orange-100 transition-all"
-            title="تعديل البيانات الشخصية"
+        {/* Admin Portal Button */}
+        {currentUser.role === 'admin' && (
+          <Link
+            to="/admin"
+            className="flex items-center gap-1.5 rounded-2xl bg-gray-900 px-3.5 py-2 text-xs font-black text-white shadow hover:bg-gray-800 transition-all"
           >
-            <Edit3 size={15} />
-            <span>تعديل البيانات</span>
-          </button>
-
-          {currentUser.role === 'admin' && (
-            <Link
-              to="/admin"
-              className="flex items-center gap-1.5 rounded-2xl bg-gray-900 px-3.5 py-2 text-xs font-black text-white shadow hover:bg-gray-800 transition-all"
-            >
-              <ShieldCheck size={15} />
-              <span>لوحة الإدارة</span>
-            </Link>
-          )}
-
-          {/* Logout Button */}
-          <button
-            onClick={logout}
-            className="flex items-center gap-1.5 rounded-2xl border border-gray-200 bg-gray-50 px-3.5 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 transition-all"
-          >
-            <LogOut size={15} />
-            <span>تسجيل الخروج</span>
-          </button>
-
-          {/* Delete Account Button */}
-          <button
-            onClick={() => setIsDeleteModalOpen(true)}
-            className="flex items-center gap-1.5 rounded-2xl border border-red-100 bg-red-50 px-3.5 py-2 text-xs font-bold text-red-600 hover:bg-red-100 transition-all"
-            title="حذف الحساب نهائياً"
-          >
-            <Trash2 size={15} />
-            <span>حذف الحساب</span>
-          </button>
-        </div>
+            <ShieldCheck size={15} />
+            <span>لوحة الإدارة</span>
+          </Link>
+        )}
       </div>
 
       {/* ============================================================ */}
@@ -462,24 +427,58 @@ export const ProfilePage: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Standalone Tracking Search Input Bar */}
-      <form onSubmit={handleSearchOrder} className="rounded-3xl bg-white p-3 sm:p-4 shadow-sm ring-1 ring-black/5">
-        <div className="relative flex items-center">
-          <input
-            value={searchCode}
-            onChange={e => setSearchCode(e.target.value)}
-            placeholder="رقم الطلب (مثال: DM8421) أو رقم الهاتف"
-            className="w-full rounded-2xl border border-gray-200 bg-white py-3.5 pe-28 ps-11 text-sm font-bold shadow-sm outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
-          />
-          <Search size={18} className="absolute start-4 text-gray-400" />
-          <button
-            type="submit"
-            className="absolute end-2 rounded-xl bg-orange-500 px-5 py-2 text-xs font-black text-white shadow-md shadow-orange-500/20 hover:bg-orange-600 active:scale-95 transition-all"
-          >
-            تتبع
-          </button>
-        </div>
+      {/* Clean Tracking Search Input Bar (No Outer Frame, Matching 'طلباتي' Size) */}
+      <form onSubmit={handleSearchOrder} className="relative flex items-center w-full">
+        <input
+          value={searchCode}
+          onChange={e => setSearchCode(e.target.value)}
+          placeholder="رقم الطلب (مثال: DM8421) أو رقم الهاتف"
+          className="w-full rounded-2xl border border-gray-200 bg-white py-3 pe-28 ps-11 text-xs font-bold text-gray-900 shadow-sm outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+        />
+        <Search size={18} className="absolute start-4 text-gray-400" />
+        <button
+          type="submit"
+          className="absolute end-1.5 flex items-center justify-center rounded-xl bg-orange-500 px-6 py-2 text-xs font-black text-white shadow-md shadow-orange-500/20 hover:bg-orange-600 active:scale-95 transition-all"
+        >
+          تتبع
+        </button>
       </form>
+
+      {/* Account Action Buttons Row (Equal 3-column width & matching 'طلباتي' size) */}
+      <div className="flex w-full items-center justify-between gap-2.5">
+        {/* Edit Profile Button */}
+        <button
+          onClick={() => {
+            setEditName(currentUser.name);
+            setEditPhone(currentUser.phone || '');
+            setIsEditModalOpen(true);
+          }}
+          className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-orange-200/80 bg-orange-50/80 py-3 px-3 text-xs font-black text-orange-600 hover:bg-orange-100 transition-all shadow-sm active:scale-95"
+          title="تعديل البيانات الشخصية"
+        >
+          <Edit3 size={16} />
+          <span>تعديل البيانات</span>
+        </button>
+
+        {/* Logout Button */}
+        <button
+          onClick={logout}
+          className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-3 px-3 text-xs font-black text-slate-700 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+        >
+          <LogOut size={16} />
+          <span>تسجيل الخروج</span>
+        </button>
+
+        {/* Delete Account Button */}
+        <button
+          onClick={() => setIsDeleteModalOpen(true)}
+          className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-red-200/80 bg-red-50/80 py-3 px-3 text-xs font-black text-red-600 hover:bg-red-100 transition-all shadow-sm active:scale-95"
+          title="حذف الحساب نهائياً"
+        >
+          <Trash2 size={16} />
+          <span>حذف الحساب</span>
+        </button>
+      </div>
 
       {/* ============================================================ */}
       {/* TABS ROW */}
