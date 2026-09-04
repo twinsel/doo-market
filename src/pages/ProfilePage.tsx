@@ -427,27 +427,25 @@ export const ProfilePage: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Standalone Tracking Search Input Bar */}
-      <form onSubmit={handleSearchOrder} className="rounded-3xl bg-white p-3 sm:p-4 shadow-sm ring-1 ring-black/5">
-        <div className="relative flex items-center">
-          <input
-            value={searchCode}
-            onChange={e => setSearchCode(e.target.value)}
-            placeholder="رقم الطلب (مثال: DM8421) أو رقم الهاتف"
-            className="w-full rounded-2xl border border-gray-200 bg-white py-3.5 pe-28 ps-11 text-sm font-bold shadow-sm outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
-          />
-          <Search size={18} className="absolute start-4 text-gray-400" />
-          <button
-            type="submit"
-            className="absolute end-2 rounded-xl bg-orange-500 px-5 py-2 text-xs font-black text-white shadow-md shadow-orange-500/20 hover:bg-orange-600 active:scale-95 transition-all"
-          >
-            تتبع
-          </button>
-        </div>
+      {/* Clean Tracking Search Input Bar (No Outer Card Frame, Matching 'طلباتي' Size) */}
+      <form onSubmit={handleSearchOrder} className="relative flex items-center w-full">
+        <input
+          value={searchCode}
+          onChange={e => setSearchCode(e.target.value)}
+          placeholder="رقم الطلب (مثال: DM8421) أو رقم الهاتف"
+          className="w-full rounded-2xl border border-gray-200 bg-white py-3 pe-28 ps-11 text-xs font-bold text-gray-900 shadow-sm outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+        />
+        <Search size={18} className="absolute start-4 text-gray-400" />
+        <button
+          type="submit"
+          className="absolute end-1.5 flex items-center justify-center rounded-xl bg-orange-500 px-6 py-2 text-xs font-black text-white shadow-md shadow-orange-500/20 hover:bg-orange-600 active:scale-95 transition-all"
+        >
+          تتبع
+        </button>
       </form>
 
-      {/* Account Action Buttons Row (Placed together right above Tabs Bar) */}
-      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+      {/* Account Action Buttons Row (Equal 3-column width & matching 'طلباتي' py-3 size) */}
+      <div className="flex w-full items-center justify-between gap-2.5">
         {/* Edit Profile Button */}
         <button
           onClick={() => {
@@ -455,29 +453,29 @@ export const ProfilePage: React.FC = () => {
             setEditPhone(currentUser.phone || '');
             setIsEditModalOpen(true);
           }}
-          className="flex items-center gap-1.5 rounded-2xl border border-orange-200/80 bg-orange-50/80 px-4 py-2.5 text-xs font-bold text-orange-600 hover:bg-orange-100 transition-all shadow-sm"
+          className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-orange-200/80 bg-orange-50/80 py-3 px-3 text-xs font-black text-orange-600 hover:bg-orange-100 transition-all shadow-sm active:scale-95"
           title="تعديل البيانات الشخصية"
         >
-          <Edit3 size={15} />
+          <Edit3 size={16} />
           <span>تعديل البيانات</span>
         </button>
 
         {/* Logout Button */}
         <button
           onClick={logout}
-          className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+          className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-3 px-3 text-xs font-black text-slate-700 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
         >
-          <LogOut size={15} />
+          <LogOut size={16} />
           <span>تسجيل الخروج</span>
         </button>
 
         {/* Delete Account Button */}
         <button
           onClick={() => setIsDeleteModalOpen(true)}
-          className="flex items-center gap-1.5 rounded-2xl border border-red-200/80 bg-red-50/80 px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-100 transition-all shadow-sm"
+          className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-red-200/80 bg-red-50/80 py-3 px-3 text-xs font-black text-red-600 hover:bg-red-100 transition-all shadow-sm active:scale-95"
           title="حذف الحساب نهائياً"
         >
-          <Trash2 size={15} />
+          <Trash2 size={16} />
           <span>حذف الحساب</span>
         </button>
       </div>
