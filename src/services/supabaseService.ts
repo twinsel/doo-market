@@ -65,26 +65,58 @@ export const signUpUserWithSupabase = async (
   role: 'buyer' | 'admin' = 'buyer'
 ): Promise<{ ok: boolean; user?: User; error?: string }> => {
   try {
-    if (email && password) {
-      // Supabase Auth SignUp
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Check if user already exists in DB
+    const { data: existingUsers } = await supabase
+      .from('users')
+      .select('*')
+      .or(`email.ilike.${cleanEmail},phone.eq.${cleanEmail}`);
+
+    if (existingUsers && existingUsers.length > 0) {
+      const existing = existingUsers[0];
+      const updatedUser: User = {
+        id: existing.id,
+        name: name?.trim() || existing.name || cleanEmail.split('@')[0],
+        email: cleanEmail,
+        phone: phone?.trim() || existing.phone || '',
+        role: existing.role || role || 'buyer',
+        joinedAt: existing.joined_at || 'اليوم',
+        avatar: existing.avatar,
+        cart: existing.cart || [],
+        wishlist: existing.wishlist || []
+      };
+
+      // Update name & phone in DB
+      await supabase.from('users').update({
+        name: updatedUser.name,
+        phone: updatedUser.phone
+      }).eq('id', existing.id);
+
+      return { ok: true, user: updatedUser };
+    }
+
+    let authUserId: string | null = null;
+
+    if (cleanEmail && password) {
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
+        email: cleanEmail,
         password,
         options: {
           data: { name: name || 'مستخدم', phone: phone || '', role }
         }
       });
 
-      if (authError && !authError.message.includes('already registered')) {
-        console.warn('Supabase Auth warning:', authError.message);
+      if (authData?.user?.id) {
+        authUserId = authData.user.id;
       }
     }
 
-    const userId = 'usr-' + Date.now();
+    const userId = authUserId || 'usr-' + Date.now();
     const newUser: User = {
       id: userId,
-      name: name?.trim() || 'مستخدم',
-      email: email.trim(),
+      name: name?.trim() || cleanEmail.split('@')[0] || 'مستخدم',
+      email: cleanEmail,
       phone: phone?.trim() || '',
       role: role || 'buyer',
       joinedAt: 'اليوم',
@@ -92,8 +124,7 @@ export const signUpUserWithSupabase = async (
       wishlist: []
     };
 
-    // Upsert into users table
-    const { error: dbError } = await supabase.from('users').upsert({
+    await supabase.from('users').upsert({
       id: newUser.id,
       name: newUser.name,
       email: newUser.email,
@@ -103,10 +134,6 @@ export const signUpUserWithSupabase = async (
       cart: [],
       wishlist: []
     });
-
-    if (dbError) {
-      console.warn('DB User save warning:', dbError.message);
-    }
 
     return { ok: true, user: newUser };
   } catch (e: any) {
@@ -120,10 +147,34 @@ export const signInUserWithSupabase = async (
   password?: string
 ): Promise<{ ok: boolean; user?: User; error?: string }> => {
   try {
-    // 1. Try Supabase Auth
-    if (email && password) {
+    const cleanEmail = email.trim().toLowerCase();
+
+    // 1. Check DB first for exact match by email or phone
+    const { data: existingUsers } = await supabase
+      .from('users')
+      .select('*')
+      .or(`email.ilike.${cleanEmail},phone.eq.${cleanEmail}`);
+
+    if (existingUsers && existingUsers.length > 0) {
+      const match = existingUsers[0];
+      const matchedUser: User = {
+        id: match.id,
+        name: match.name,
+        email: match.email || cleanEmail,
+        phone: match.phone || '',
+        role: match.role || 'buyer',
+        joinedAt: match.joined_at || 'اليوم',
+        cart: match.cart || [],
+        wishlist: match.wishlist || [],
+        avatar: match.avatar
+      };
+      return { ok: true, user: matchedUser };
+    }
+
+    // 2. Try Supabase Auth
+    if (cleanEmail && password) {
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
+        email: cleanEmail,
         password
       });
 
@@ -133,42 +184,19 @@ export const signInUserWithSupabase = async (
         const foundUser: User = {
           id: u.id,
           name: metadata.name || u.email?.split('@')[0] || 'مستخدم',
-          email: u.email || email,
+          email: u.email || cleanEmail,
           phone: metadata.phone || '',
-          role: metadata.role || (email.includes('admin') ? 'admin' : 'buyer')
+          role: metadata.role || 'buyer'
         };
         return { ok: true, user: foundUser };
       }
     }
 
-    // 2. Fallback: Search users table by email or phone
-    const { data: existingUsers, error: fetchError } = await supabase
-      .from('users')
-      .select('*')
-      .or(`email.eq.${email.trim()},phone.eq.${email.trim()}`);
-
-    if (existingUsers && existingUsers.length > 0) {
-      const match = existingUsers[0];
-      const matchedUser: User = {
-        id: match.id,
-        name: match.name,
-        email: match.email,
-        phone: match.phone,
-        role: match.role || 'buyer',
-        joinedAt: match.joined_at,
-        cart: match.cart || [],
-        wishlist: match.wishlist || [],
-        avatar: match.avatar
-      };
-      return { ok: true, user: matchedUser };
-    }
-
-    // 3. New User login fallback
-    const isUserAdmin = email.toLowerCase().includes('admin') || email.toLowerCase().includes('مدير');
+    const isUserAdmin = cleanEmail.includes('admin') || cleanEmail.includes('مدير');
     const newUser: User = {
       id: 'usr-' + Date.now(),
-      name: email.split('@')[0] || 'مستخدم',
-      email: email.trim(),
+      name: cleanEmail.split('@')[0] || 'مستخدم',
+      email: cleanEmail,
       phone: '',
       role: isUserAdmin ? 'admin' : 'buyer'
     };
