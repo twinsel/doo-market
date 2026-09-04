@@ -67,8 +67,38 @@ export const signUpUserWithSupabase = async (
   try {
     const cleanEmail = email.trim().toLowerCase();
 
+    // Check if user already exists in DB
+    const { data: existingUsers } = await supabase
+      .from('users')
+      .select('*')
+      .or(`email.ilike.${cleanEmail},phone.eq.${cleanEmail}`);
+
+    if (existingUsers && existingUsers.length > 0) {
+      const existing = existingUsers[0];
+      const updatedUser: User = {
+        id: existing.id,
+        name: name?.trim() || existing.name || cleanEmail.split('@')[0],
+        email: cleanEmail,
+        phone: phone?.trim() || existing.phone || '',
+        role: existing.role || role || 'buyer',
+        joinedAt: existing.joined_at || 'اليوم',
+        avatar: existing.avatar,
+        cart: existing.cart || [],
+        wishlist: existing.wishlist || []
+      };
+
+      // Update name & phone in DB
+      await supabase.from('users').update({
+        name: updatedUser.name,
+        phone: updatedUser.phone
+      }).eq('id', existing.id);
+
+      return { ok: true, user: updatedUser };
+    }
+
+    let authUserId: string | null = null;
+
     if (cleanEmail && password) {
-      // Supabase Auth SignUp
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
@@ -77,12 +107,12 @@ export const signUpUserWithSupabase = async (
         }
       });
 
-      if (authError && !authError.message.includes('already registered')) {
-        console.warn('Supabase Auth warning:', authError.message);
+      if (authData?.user?.id) {
+        authUserId = authData.user.id;
       }
     }
 
-    const userId = 'usr-' + Date.now();
+    const userId = authUserId || 'usr-' + Date.now();
     const newUser: User = {
       id: userId,
       name: name?.trim() || cleanEmail.split('@')[0] || 'مستخدم',
@@ -94,8 +124,7 @@ export const signUpUserWithSupabase = async (
       wishlist: []
     };
 
-    // Upsert into users table
-    const { error: dbError } = await supabase.from('users').upsert({
+    await supabase.from('users').upsert({
       id: newUser.id,
       name: newUser.name,
       email: newUser.email,
@@ -105,10 +134,6 @@ export const signUpUserWithSupabase = async (
       cart: [],
       wishlist: []
     });
-
-    if (dbError) {
-      console.warn('DB User save warning:', dbError.message);
-    }
 
     return { ok: true, user: newUser };
   } catch (e: any) {
@@ -124,60 +149,51 @@ export const signInUserWithSupabase = async (
   try {
     const cleanEmail = email.trim().toLowerCase();
 
-    // 1. Try Supabase Auth
-    if (cleanEmail && password) {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password
-      });
-
-      if (!authError && authData?.user) {
-        const u = authData.user;
-        const metadata = u.user_metadata || {};
-        const foundUser: User = {
-          id: u.id,
-          name: metadata.name || u.email?.split('@')[0] || 'مستخدم',
-          email: u.email || cleanEmail,
-          phone: metadata.phone || '',
-          role: metadata.role || (cleanEmail.includes('admin') ? 'admin' : 'buyer')
-        };
-        return { ok: true, user: foundUser };
-      }
+    if (!cleanEmail || !password) {
+      return { ok: false, error: 'يرجى إدخال البريد الإلكتروني وكلمة المرور' };
     }
 
-    // 2. Fallback: Search users table by email or phone
-    const { data: existingUsers } = await supabase
+    // 1. Verify password via Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password: password
+    });
+
+    if (authError || !authData?.user) {
+      // Check if user exists in DB to give precise security feedback or reject
+      const { data: existingUsers } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', cleanEmail);
+
+      if (existingUsers && existingUsers.length > 0) {
+        return { ok: false, error: 'كلمة المرور غير صحيحة، يرجى التأكد وإعادة المحاولة' };
+      }
+
+      return { ok: false, error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' };
+    }
+
+    // 2. Fetch matched user profile from DB using authenticated user ID
+    const u = authData.user;
+    const { data: profile } = await supabase
       .from('users')
       .select('*')
-      .or(`email.eq.${cleanEmail},phone.eq.${cleanEmail}`);
+      .eq('id', u.id)
+      .single();
 
-    if (existingUsers && existingUsers.length > 0) {
-      const match = existingUsers[0];
-      const matchedUser: User = {
-        id: match.id,
-        name: match.name,
-        email: match.email || cleanEmail,
-        phone: match.phone || '',
-        role: match.role || 'buyer',
-        joinedAt: match.joined_at,
-        cart: match.cart || [],
-        wishlist: match.wishlist || [],
-        avatar: match.avatar
-      };
-      return { ok: true, user: matchedUser };
-    }
-
-    // 3. New User login fallback
-    const isUserAdmin = cleanEmail.includes('admin') || cleanEmail.includes('مدير');
-    const newUser: User = {
-      id: 'usr-' + Date.now(),
-      name: cleanEmail.split('@')[0] || 'مستخدم',
-      email: cleanEmail,
-      phone: '',
-      role: isUserAdmin ? 'admin' : 'buyer'
+    const metadata = u.user_metadata || {};
+    const foundUser: User = {
+      id: u.id,
+      name: profile?.name || metadata.name || u.email?.split('@')[0] || 'مستخدم',
+      email: u.email || cleanEmail,
+      phone: profile?.phone || metadata.phone || '',
+      role: profile?.role || metadata.role || 'buyer',
+      avatar: profile?.avatar,
+      cart: profile?.cart || [],
+      wishlist: profile?.wishlist || []
     };
 
-    return { ok: true, user: newUser };
+    return { ok: true, user: foundUser };
   } catch (e: any) {
     console.error('Failed to sign in user:', e);
     return { ok: false, error: e.message || 'حدث خطأ أثناء تسجيل الدخول' };
