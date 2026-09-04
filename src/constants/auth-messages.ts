@@ -59,7 +59,7 @@ export const AUTH_MESSAGES = {
     confirmPasswordMatch: 'كلمات المرور غير متطابقة',
     nameMin: 'الاسم يجب أن يكون حرفين على الأقل',
     nameMax: 'الاسم طويل جداً',
-    phoneInvalid: 'رقم الجوال غير صحيح (يجب أن يبدأ بـ 05 ويتكون من 10 أرقام)',
+    phoneInvalid: 'رقم الجوال غير صحيح (يجب أن يبدأ بـ 09 أو 05 ويتكون من 10 أرقام)',
     termsRequired: 'يجب الموافقة على الشروط والأحكام',
   },
 } as const;

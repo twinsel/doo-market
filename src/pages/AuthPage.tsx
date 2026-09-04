@@ -416,7 +416,7 @@ export const AuthPage: React.FC = () => {
                         type="tel"
                         value={regPhone}
                         onChange={e => setRegPhone(e.target.value)}
-                        placeholder="0501234567"
+                        placeholder="0901234567"
                         className="w-full rounded-2xl border border-slate-200 bg-white p-3.5 ps-11 text-sm font-bold text-slate-900 placeholder-slate-400 outline-none transition-all focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
                       />
                       <Phone size={18} className="absolute start-4 top-1/2 -translate-y-1/2 text-slate-400" />

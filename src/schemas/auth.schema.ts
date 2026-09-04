@@ -171,7 +171,7 @@ export const updateProfileSchema = z.object({
     .string()
     .optional()
     .refine(
-      (val) => !val || /^(05|5)[0-9]{8}$/.test(val) || val.length >= 8,
+      (val) => !val || /^(09|9|05|5)[0-9]{8}$/.test(val) || val.length >= 8,
       'رقم الجوال غير صحيح'
     ),
 
