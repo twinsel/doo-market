@@ -67,7 +67,21 @@ export const signUpUserWithSupabase = async (
   try {
     const cleanEmail = email.trim().toLowerCase();
 
-    // Check if user already exists in DB
+    // 1. Sync & update new password in Supabase Auth
+    if (cleanEmail && password) {
+      await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: {
+          data: { name: name || 'مستخدم', phone: phone || '', role }
+        }
+      }).catch(() => {});
+
+      // Overwrite Supabase Auth password to the new password entered
+      await supabase.auth.updateUser({ password }).catch(() => {});
+    }
+
+    // 2. Check if user already exists in DB
     const { data: existingUsers } = await supabase
       .from('users')
       .select('*')
@@ -97,19 +111,9 @@ export const signUpUserWithSupabase = async (
     }
 
     let authUserId: string | null = null;
-
-    if (cleanEmail && password) {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password,
-        options: {
-          data: { name: name || 'مستخدم', phone: phone || '', role }
-        }
-      });
-
-      if (authData?.user?.id) {
-        authUserId = authData.user.id;
-      }
+    const { data: { user: currentAuthUser } } = await supabase.auth.getUser();
+    if (currentAuthUser) {
+      authUserId = currentAuthUser.id;
     }
 
     const userId = authUserId || 'usr-' + Date.now();
