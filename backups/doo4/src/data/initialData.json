@@ -1,0 +1,852 @@
+{
+  "settings": {
+    "siteName": "دُو ماركت",
+    "brandMark": "دُو",
+    "siteTagline": "تسوق بذكاء · أسعار ولا أروع",
+    "currency": "SAR",
+    "currencySymbol": "ر.س",
+    "primaryColor": "#FF6A00",
+    "phone": "920000000",
+    "email": "support@doomarket.com",
+    "freeShippingMin": 99,
+    "announcement": "🔥 عروض البرق · خصم حتى 80% · شحن مجاني فوق 99 ر.س",
+    "showAnnouncement": false,
+    "whatsapp": "963954475933",
+    "qrImage": "/uploads/DOO__1_.png",
+    "qrTitle": "امسح للدفع / التواصل",
+    "qrSubtitle": "امسح رمز QR لإتمام الطلب أو التواصل معنا مباشرة",
+    "showQr": true,
+    "socialFacebook": "https://facebook.com",
+    "socialX": "https://x.com",
+    "socialYoutube": "https://youtube.com",
+    "socialInstagram": "https://instagram.com",
+    "socialTelegram": "https://t.me",
+    "showSocial": true,
+    "cartHoldHours": 1,
+    "reserveStockInCart": true,
+    "showWelcomeScreen": true,
+    "welcomeMessage": "أهلاً بك في دُو ماركت - استمتع بتجربة تسوق فريدة",
+    "welcomeDuration": 4,
+    "logoutMessage": "جاري تسجيل الخروج... نتمنى أن تكون قد استمتعت بتجربة شراء فريدة",
+    "logoutDuration": 3
+  },
+  "reservations": [],
+  "categories": [
+    {
+      "id": "cat-fashion",
+      "name": "أزياء",
+      "nameEn": "Fashion",
+      "icon": "Shirt",
+      "image": "/images/product-1.jpg",
+      "color": "#FF6A00",
+      "order": 1,
+      "active": true
+    },
+    {
+      "id": "cat-electronics",
+      "name": "إلكترونيات",
+      "nameEn": "Electronics",
+      "icon": "Smartphone",
+      "image": "/images/product-2.jpg",
+      "color": "#3B82F6",
+      "order": 2,
+      "active": true
+    },
+    {
+      "id": "cat-beauty",
+      "name": "جمال وعناية",
+      "nameEn": "Beauty",
+      "icon": "Sparkles",
+      "image": "/images/product-4.jpg",
+      "color": "#EC4899",
+      "order": 3,
+      "active": true
+    },
+    {
+      "id": "cat-home",
+      "name": "المنزل",
+      "nameEn": "Home",
+      "icon": "Home",
+      "image": "/images/product-5.jpg",
+      "color": "#10B981",
+      "order": 4,
+      "active": true
+    },
+    {
+      "id": "cat-shoes",
+      "name": "أحذية",
+      "nameEn": "Shoes",
+      "icon": "Footprints",
+      "image": "/images/product-6.jpg",
+      "color": "#8B5CF6",
+      "order": 5,
+      "active": true
+    },
+    {
+      "id": "cat-bags",
+      "name": "حقائب",
+      "nameEn": "Bags",
+      "icon": "ShoppingBag",
+      "image": "/images/product-7.jpg",
+      "color": "#F59E0B",
+      "order": 6,
+      "active": true
+    },
+    {
+      "id": "cat-kitchen",
+      "name": "مطبخ",
+      "nameEn": "Kitchen",
+      "icon": "CookingPot",
+      "image": "/images/product-8.jpg",
+      "color": "#EF4444",
+      "order": 7,
+      "active": true
+    },
+    {
+      "id": "cat-watches",
+      "name": "ساعات",
+      "nameEn": "Watches",
+      "icon": "Watch",
+      "image": "/images/product-3.jpg",
+      "color": "#06B6D4",
+      "order": 8,
+      "active": true
+    },
+    {
+      "id": "cat-boxes",
+      "name": "بوكسات",
+      "nameEn": "Boxes",
+      "icon": "Package",
+      "image": "/images/product-5.jpg",
+      "color": "#D97706",
+      "order": 9,
+      "active": true
+    }
+  ],
+  "banners": [
+    {
+      "id": "banner-1",
+      "title": "عروض البرق اليومية",
+      "subtitle": "خصومات تصل إلى 80% على آلاف المنتجات",
+      "image": "/images/hero-1.jpg",
+      "link": "/deals",
+      "buttonText": "تسوق الآن",
+      "order": 1,
+      "active": true,
+      "bgColor": "#FF6A00"
+    },
+    {
+      "id": "banner-2",
+      "title": "موضة الموسم",
+      "subtitle": "أحدث صيحات الأزياء بأسعار خيالية",
+      "image": "/images/hero-2.jpg",
+      "link": "/category/cat-fashion",
+      "buttonText": "اكتشف المجموعة",
+      "order": 2,
+      "active": true,
+      "bgColor": "#FF2442"
+    }
+  ],
+  "sections": [
+    {
+      "id": "sec-flash",
+      "type": "flash",
+      "title": "عروض البرق ⚡",
+      "subtitle": "تنتهي قريباً — لا تفوّت الفرصة",
+      "active": true,
+      "order": 1
+    },
+    {
+      "id": "sec-cats",
+      "type": "category",
+      "title": "تسوّق حسب القسم",
+      "subtitle": "اختر ما يناسبك",
+      "active": true,
+      "order": 2
+    },
+    {
+      "id": "sec-featured",
+      "type": "featured",
+      "title": "منتجات مميزة",
+      "subtitle": "اختيارات فريقنا لك",
+      "active": true,
+      "order": 3
+    },
+    {
+      "id": "sec-new",
+      "type": "new",
+      "title": "وصل حديثاً",
+      "subtitle": "أحدث الإضافات للمتجر",
+      "active": true,
+      "order": 4
+    },
+    {
+      "id": "sec-best",
+      "type": "bestsellers",
+      "title": "الأكثر مبيعاً",
+      "subtitle": "الأحب لدى عملائنا",
+      "active": true,
+      "order": 5
+    },
+    {
+      "id": "sec-promo",
+      "type": "promo",
+      "title": "شحن مجاني",
+      "subtitle": "على الطلبات فوق 99 ر.س",
+      "active": true,
+      "order": 6,
+      "promoText": "🚚 شحن مجاني · 💯 ضمان استرجاع 30 يوم · 🔒 دفع آمن 100%",
+      "promoColor": "#FFF7ED"
+    }
+  ],
+  "products": [
+    {
+      "id": "p1",
+      "name": "فستان صيفي أنيق برتقالي",
+      "nameEn": "Elegant Summer Orange Dress",
+      "description": "فستان صيفي خفيف بقصة أنيقة ولون برتقالي مشرق. قماش ناعم مريح يناسب الخروجات والمناسبات اليومية. تصميم عصري مع تفاصيل راقية وتشطيب ممتاز.",
+      "descriptionEn": "Light elegant summer dress in bright orange. Soft comfortable fabric for outings and daily occasions.",
+      "price": 89,
+      "originalPrice": 249,
+      "images": [
+        "/images/product-1.jpg"
+      ],
+      "categoryId": "cat-fashion",
+      "rating": 4.8,
+      "reviews": 1240,
+      "sold": 3560,
+      "stock": 20,
+      "tags": [
+        "أزياء",
+        "صيفي",
+        "خصم"
+      ],
+      "colors": [
+        "#FF6A00",
+        "#000000",
+        "#FFFFFF"
+      ],
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "featured": true,
+      "flashDeal": true,
+      "flashEndsAt": "2026-08-18T11:19:46.804Z",
+      "freeShipping": true,
+      "showBadge": false,
+      "isNew": false,
+      "active": true
+    },
+    {
+      "id": "p2",
+      "name": "سماعات لاسلكية برو",
+      "nameEn": "Wireless Earbuds Pro",
+      "description": "سماعات بلوتوث بجودة صوت عالية وعزل ضوضاء فعّال. بطارية تدوم حتى 24 ساعة مع علبة الشحن. مقاومة للماء IPX5 ومناسبة للرياضة والاستخدام اليومي.",
+      "descriptionEn": "Bluetooth earbuds with premium sound and noise isolation. 24h battery with case.",
+      "price": 79,
+      "originalPrice": 199,
+      "images": [
+        "/images/product-2.jpg"
+      ],
+      "categoryId": "cat-electronics",
+      "rating": 4.6,
+      "reviews": 890,
+      "sold": 5200,
+      "stock": 20,
+      "tags": [
+        "إلكترونيات",
+        "صوتيات"
+      ],
+      "colors": [
+        "#000000",
+        "#FFFFFF",
+        "#3B82F6"
+      ],
+      "featured": true,
+      "flashDeal": true,
+      "flashEndsAt": "2026-08-18T08:19:46.804Z",
+      "freeShipping": true,
+      "showBadge": false,
+      "isNew": true,
+      "active": true
+    },
+    {
+      "id": "p3",
+      "name": "ساعة ذكية رياضية",
+      "nameEn": "Smart Sport Watch",
+      "description": "ساعة ذكية بتتبع اللياقة ومعدل نبض القلب والنوم. شاشة AMOLED ساطعة ومقاومة للماء. متوافقة مع أندرويد و iOS مع إشعارات ذكية.",
+      "descriptionEn": "Smartwatch with fitness tracking, heart rate and sleep monitoring. AMOLED display.",
+      "price": 129,
+      "originalPrice": 349,
+      "images": [
+        "/images/product-3.jpg"
+      ],
+      "categoryId": "cat-watches",
+      "rating": 4.7,
+      "reviews": 2100,
+      "sold": 4100,
+      "stock": 20,
+      "tags": [
+        "ساعات",
+        "رياضة"
+      ],
+      "colors": [
+        "#000000",
+        "#C0C0C0",
+        "#FF6A00"
+      ],
+      "sizes": [
+        "40mm",
+        "44mm"
+      ],
+      "featured": true,
+      "flashDeal": true,
+      "flashEndsAt": "2026-08-18T15:19:46.804Z",
+      "freeShipping": true,
+      "showBadge": false,
+      "isNew": false,
+      "active": true
+    },
+    {
+      "id": "p4",
+      "name": "طقم عناية بالبشرة الفاخر",
+      "nameEn": "Luxury Skincare Set",
+      "description": "طقم متكامل للعناية بالبشرة يشمل غسول ومرطب وسيروم فيتامين C. مناسب لجميع أنواع البشرة، خالٍ من البارابين، بنتائج ملحوظة خلال أسبوعين.",
+      "descriptionEn": "Complete skincare set with cleanser, moisturizer and Vitamin C serum.",
+      "price": 119,
+      "originalPrice": 280,
+      "images": [
+        "/images/product-4.jpg"
+      ],
+      "categoryId": "cat-beauty",
+      "rating": 4.9,
+      "reviews": 1560,
+      "sold": 2800,
+      "stock": 20,
+      "tags": [
+        "جمال",
+        "عناية"
+      ],
+      "featured": true,
+      "flashDeal": false,
+      "freeShipping": true,
+      "showBadge": false,
+      "isNew": true,
+      "active": true
+    },
+    {
+      "id": "p5",
+      "name": "مصباح ديكور عصري LED",
+      "nameEn": "Modern LED Decor Lamp",
+      "description": "مصباح ديكور بتصميم عصري وإضاءة LED قابلة للتعتيم. مثالي لغرف المعيشة وغرف النوم. توفير طاقة عالي مع عمر افتراضي طويل.",
+      "descriptionEn": "Modern dimmable LED decor lamp perfect for living rooms and bedrooms.",
+      "price": 65,
+      "originalPrice": 150,
+      "images": [
+        "/images/product-5.jpg"
+      ],
+      "categoryId": "cat-home",
+      "rating": 4.5,
+      "reviews": 430,
+      "sold": 980,
+      "stock": 20,
+      "tags": [
+        "منزل",
+        "إضاءة"
+      ],
+      "colors": [
+        "#000000",
+        "#FFFFFF",
+        "#D4A574"
+      ],
+      "featured": false,
+      "flashDeal": true,
+      "flashEndsAt": "2026-08-18T09:19:46.804Z",
+      "freeShipping": false,
+      "showBadge": false,
+      "isNew": false,
+      "active": true
+    },
+    {
+      "id": "p6",
+      "name": "حذاء رياضي مريح",
+      "nameEn": "Comfort Sport Sneakers",
+      "description": "حذاء رياضي خفيف بتصميم عصري ونعل مرن يوفر راحة طوال اليوم. مناسب للمشي والرياضة الخفيفة. خامات عالية الجودة وتهوية ممتازة.",
+      "descriptionEn": "Lightweight sport sneakers with flexible sole for all-day comfort.",
+      "price": 99,
+      "originalPrice": 259,
+      "images": [
+        "/images/product-6.jpg"
+      ],
+      "categoryId": "cat-shoes",
+      "rating": 4.6,
+      "reviews": 1870,
+      "sold": 6200,
+      "stock": 20,
+      "tags": [
+        "أحذية",
+        "رياضي"
+      ],
+      "colors": [
+        "#FFFFFF",
+        "#000000",
+        "#EF4444"
+      ],
+      "sizes": [
+        "40",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45"
+      ],
+      "featured": true,
+      "flashDeal": false,
+      "freeShipping": true,
+      "showBadge": false,
+      "isNew": true,
+      "active": true
+    },
+    {
+      "id": "p7",
+      "name": "حقيبة يد جلدية فاخرة",
+      "nameEn": "Luxury Leather Handbag",
+      "description": "حقيبة يد أنيقة من الجلد عالي الجودة بتصميم كلاسيكي عصري. جيوب داخلية منظمة وحزام كتف قابل للتعديل. مثالية للعمل والمناسبات.",
+      "descriptionEn": "Elegant high-quality leather handbag with classic modern design.",
+      "price": 149,
+      "originalPrice": 399,
+      "images": [
+        "/images/product-7.jpg"
+      ],
+      "categoryId": "cat-bags",
+      "rating": 4.8,
+      "reviews": 720,
+      "sold": 1450,
+      "stock": 20,
+      "tags": [
+        "حقائب",
+        "فاخر"
+      ],
+      "colors": [
+        "#8B4513",
+        "#000000",
+        "#BEBEBE"
+      ],
+      "featured": true,
+      "flashDeal": true,
+      "flashEndsAt": "2026-08-18T13:19:46.804Z",
+      "freeShipping": true,
+      "showBadge": false,
+      "isNew": false,
+      "active": true
+    },
+    {
+      "id": "p8",
+      "name": "خلاط مطبخ متعدد الوظائف",
+      "nameEn": "Multi-function Kitchen Blender",
+      "description": "خلاط قوي متعدد الاستخدامات لتحضير العصائر والشوربات والصلصات. شفرات ستانلس ستيل محركات بقوة 800 واط وعدة سرعات مع خاصية النبض.",
+      "descriptionEn": "Powerful multi-function blender for juices, soups and sauces. 800W motor.",
+      "price": 159,
+      "originalPrice": 320,
+      "images": [
+        "/images/product-8.jpg"
+      ],
+      "categoryId": "cat-kitchen",
+      "rating": 4.4,
+      "reviews": 560,
+      "sold": 890,
+      "stock": 20,
+      "tags": [
+        "مطبخ",
+        "أجهزة"
+      ],
+      "colors": [
+        "#C0C0C0",
+        "#000000"
+      ],
+      "featured": false,
+      "flashDeal": false,
+      "freeShipping": true,
+      "showBadge": false,
+      "isNew": true,
+      "active": true
+    },
+    {
+      "id": "p9",
+      "name": "تيشيرت قطني أساسي",
+      "nameEn": "Essential Cotton T-Shirt",
+      "description": "تيشيرت قطني 100% ناعم ومريح بقصة عصرية. متوفر بألوان متعددة. مثالي للاستخدام اليومي مع جودة تدوم غسلة بعد غسلة.",
+      "descriptionEn": "100% soft cotton t-shirt with modern fit. Multiple colors available.",
+      "price": 35,
+      "originalPrice": 79,
+      "images": [
+        "/images/product-1.jpg"
+      ],
+      "categoryId": "cat-fashion",
+      "rating": 4.3,
+      "reviews": 3200,
+      "sold": 12000,
+      "stock": 20,
+      "tags": [
+        "أزياء",
+        "أساسي"
+      ],
+      "colors": [
+        "#FFFFFF",
+        "#000000",
+        "#FF6A00",
+        "#3B82F6",
+        "#10B981"
+      ],
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL",
+        "XXL"
+      ],
+      "featured": false,
+      "flashDeal": false,
+      "freeShipping": false,
+      "showBadge": false,
+      "isNew": false,
+      "active": true
+    },
+    {
+      "id": "p10",
+      "name": "سماعات رأس جيمنج",
+      "nameEn": "Gaming Headset",
+      "description": "سماعات رأس للألعاب بصوت محيطي 7.1 ومايكروفون قابل للفصل. إضاءة RGB قابلة للتخصيص ووسائد أذن مريحة لجلسات طويلة.",
+      "descriptionEn": "Gaming headset with 7.1 surround sound and detachable mic. RGB lighting.",
+      "price": 95,
+      "originalPrice": 220,
+      "images": [
+        "/images/product-2.jpg"
+      ],
+      "categoryId": "cat-electronics",
+      "rating": 4.5,
+      "reviews": 980,
+      "sold": 2300,
+      "stock": 20,
+      "tags": [
+        "ألعاب",
+        "صوتيات"
+      ],
+      "colors": [
+        "#000000",
+        "#FF0000"
+      ],
+      "featured": false,
+      "flashDeal": true,
+      "flashEndsAt": "2026-08-18T07:19:46.804Z",
+      "freeShipping": true,
+      "showBadge": false,
+      "isNew": false,
+      "active": true
+    },
+    {
+      "id": "p11",
+      "name": "كريم مرطب يومي SPF30",
+      "nameEn": "Daily Moisturizer SPF30",
+      "description": "مرطب يومي بخلاصة الصبار وفيتامين E مع حماية من الشمس SPF30. خفيف غير دهني ويمتص بسرعة. مناسب للاستخدام تحت المكياج.",
+      "descriptionEn": "Daily moisturizer with aloe and Vitamin E plus SPF30 sun protection.",
+      "price": 45,
+      "originalPrice": 95,
+      "images": [
+        "/images/product-4.jpg"
+      ],
+      "categoryId": "cat-beauty",
+      "rating": 4.7,
+      "reviews": 1100,
+      "sold": 3400,
+      "stock": 20,
+      "tags": [
+        "جمال",
+        "عناية"
+      ],
+      "featured": false,
+      "flashDeal": false,
+      "freeShipping": false,
+      "showBadge": false,
+      "isNew": true,
+      "active": true
+    },
+    {
+      "id": "p12",
+      "name": "حقيبة ظهر عملية",
+      "nameEn": "Practical Backpack",
+      "description": "حقيبة ظهر واسعة مقاومة للماء مع جيوب متعددة وحجرة لابتوب 15 بوصة. مثالية للدراسة والعمل والسفر. أشرطة كتف مبطنة مريحة.",
+      "descriptionEn": "Spacious waterproof backpack with laptop compartment. Great for work and travel.",
+      "price": 75,
+      "originalPrice": 180,
+      "images": [
+        "/images/product-7.jpg"
+      ],
+      "categoryId": "cat-bags",
+      "rating": 4.6,
+      "reviews": 640,
+      "sold": 1780,
+      "stock": 20,
+      "tags": [
+        "حقائب",
+        "سفر"
+      ],
+      "colors": [
+        "#000000",
+        "#1E3A5F",
+        "#808080"
+      ],
+      "featured": false,
+      "flashDeal": false,
+      "freeShipping": true,
+      "showBadge": false,
+      "isNew": false,
+      "active": true
+    },
+    {
+      "id": "p13",
+      "name": "بوكس هدايا فاخر — ذهبي",
+      "nameEn": "Luxury Gift Box Gold",
+      "description": "بوكس هدايا أنيق بتصميم فاخر مناسب للمناسبات. تغليف مميز وجودة عالية.",
+      "descriptionEn": "Elegant luxury gift box for special occasions.",
+      "price": 45,
+      "originalPrice": 90,
+      "images": [
+        "/images/product-5.jpg"
+      ],
+      "categoryId": "cat-boxes",
+      "rating": 4.8,
+      "reviews": 320,
+      "sold": 890,
+      "stock": 20,
+      "tags": [
+        "بوكسات",
+        "هدايا"
+      ],
+      "featured": true,
+      "flashDeal": false,
+      "freeShipping": true,
+      "showBadge": false,
+      "isNew": true,
+      "active": true
+    },
+    {
+      "id": "p14",
+      "name": "بوكس ورقي أنيق — كرافت",
+      "nameEn": "Kraft Paper Gift Box",
+      "description": "بوكس ورقي بتصميم كرافت طبيعي مثالي للتغليف الهدية.",
+      "descriptionEn": "Natural kraft paper gift box perfect for wrapping.",
+      "price": 18,
+      "originalPrice": 35,
+      "images": [
+        "/images/product-7.jpg"
+      ],
+      "categoryId": "cat-boxes",
+      "rating": 4.5,
+      "reviews": 180,
+      "sold": 1200,
+      "stock": 20,
+      "tags": [
+        "بوكسات"
+      ],
+      "featured": false,
+      "flashDeal": false,
+      "freeShipping": false,
+      "showBadge": false,
+      "isNew": false,
+      "active": true
+    },
+    {
+      "id": "p15",
+      "name": "بوكس مجوهرات صغير",
+      "nameEn": "Small Jewelry Box",
+      "description": "بوكس صغير أنيق لحفظ المجوهرات والإكسسوارات.",
+      "descriptionEn": "Small elegant box for jewelry and accessories.",
+      "price": 29,
+      "originalPrice": 60,
+      "images": [
+        "/images/product-4.jpg"
+      ],
+      "categoryId": "cat-boxes",
+      "rating": 4.6,
+      "reviews": 95,
+      "sold": 410,
+      "stock": 20,
+      "tags": [
+        "بوكسات",
+        "مجوهرات"
+      ],
+      "featured": false,
+      "flashDeal": false,
+      "freeShipping": true,
+      "showBadge": false,
+      "isNew": false,
+      "active": true
+    },
+    {
+      "id": "p16",
+      "name": "بوكس شوكولا فاخر",
+      "nameEn": "Premium Chocolate Box",
+      "description": "بوكس شوكولا فاخر للتقديم والهدايا.",
+      "descriptionEn": "Premium chocolate gift box.",
+      "price": 55,
+      "originalPrice": 110,
+      "images": [
+        "/images/product-1.jpg"
+      ],
+      "categoryId": "cat-boxes",
+      "rating": 4.9,
+      "reviews": 540,
+      "sold": 2100,
+      "stock": 20,
+      "tags": [
+        "بوكسات",
+        "شوكولا"
+      ],
+      "featured": true,
+      "flashDeal": true,
+      "flashEndsAt": "2026-08-18T12:19:46.804Z",
+      "freeShipping": true,
+      "showBadge": false,
+      "isNew": true,
+      "active": true
+    },
+    {
+      "id": "p17",
+      "name": "شاحن متنقل سريع 20000 مللي أمبير",
+      "nameEn": "Fast Power Bank 20000mAh",
+      "description": "شاحن متنقل بسعة كبيرة وقوة شحن 22.5 واط. يدعم الشحن السريع لجميع الأجهزة الذكية مع مخارج متعددة وتصميم نحيف.",
+      "descriptionEn": "High capacity power bank with 22.5W fast charging. Supports all smart devices.",
+      "price": 145,
+      "originalPrice": 210,
+      "images": [
+        "/images/product-2.jpg"
+      ],
+      "categoryId": "cat-electronics",
+      "rating": 4.7,
+      "reviews": 320,
+      "sold": 1100,
+      "stock": 20,
+      "tags": [
+        "إلكترونيات",
+        "شواحن"
+      ],
+      "colors": [
+        "#000000",
+        "#FFFFFF"
+      ],
+      "featured": false,
+      "flashDeal": true,
+      "flashEndsAt": "2026-08-18T10:19:46.804Z",
+      "freeShipping": true,
+      "showBadge": false,
+      "isNew": true,
+      "active": true
+    },
+    {
+      "id": "p18",
+      "name": "محضرة قهوة اسبريسو احترافية",
+      "nameEn": "Professional Espresso Coffee Maker",
+      "description": "ماكينة تحضير قهوة بقوة 15 بار لتحضير ألذ اسبريسو وكابتشينو في المنزل. خزان ماء كبير وفوهة تبخير للحليب.",
+      "descriptionEn": "15-bar espresso machine for delicious home coffee. Large tank and milk frother.",
+      "price": 499,
+      "originalPrice": 750,
+      "images": [
+        "/images/product-8.jpg"
+      ],
+      "categoryId": "cat-kitchen",
+      "rating": 4.9,
+      "reviews": 120,
+      "sold": 450,
+      "stock": 20,
+      "tags": [
+        "مطبخ",
+        "قهوة"
+      ],
+      "colors": [
+        "#C0C0C0",
+        "#000000"
+      ],
+      "featured": true,
+      "flashDeal": false,
+      "freeShipping": true,
+      "showBadge": false,
+      "isNew": true,
+      "active": true
+    },
+    {
+      "id": "p19",
+      "name": "حذاء رسمي جلد طبيعي",
+      "nameEn": "Genuine Leather Formal Shoes",
+      "description": "حذاء رسمي أنيق مصنوع من الجلد الطبيعي 100%. نعل مريح وتصميم كلاسيكي يناسب البدلات والمناسبات الرسمية.",
+      "descriptionEn": "Elegant formal shoes made of 100% genuine leather. Comfortable sole.",
+      "price": 210,
+      "originalPrice": 380,
+      "images": [
+        "/images/product-6.jpg"
+      ],
+      "categoryId": "cat-shoes",
+      "rating": 4.8,
+      "reviews": 85,
+      "sold": 310,
+      "stock": 20,
+      "tags": [
+        "أحذية",
+        "رسمي"
+      ],
+      "colors": [
+        "#000000",
+        "#8B4513"
+      ],
+      "sizes": [
+        "40",
+        "41",
+        "42",
+        "43",
+        "44"
+      ],
+      "featured": false,
+      "flashDeal": false,
+      "freeShipping": true,
+      "showBadge": false,
+      "isNew": false,
+      "active": true
+    },
+    {
+      "id": "p20",
+      "name": "ساعة يد كلاسيكية فاخرة",
+      "nameEn": "Luxury Classic Wrist Watch",
+      "description": "ساعة يد كلاسيكية بسوار جلدي وتصميم ميناء راقٍ. مقاومة للماء وتعمل بحركة كوارتز دقيقة.",
+      "descriptionEn": "Classic wrist watch with leather strap and refined dial design. Water resistant.",
+      "price": 280,
+      "originalPrice": 550,
+      "images": [
+        "/images/product-3.jpg"
+      ],
+      "categoryId": "cat-watches",
+      "rating": 4.7,
+      "reviews": 150,
+      "sold": 420,
+      "stock": 20,
+      "tags": [
+        "ساعات",
+        "فاخر"
+      ],
+      "colors": [
+        "#000000",
+        "#8B4513",
+        "#D4AF37"
+      ],
+      "featured": true,
+      "flashDeal": true,
+      "flashEndsAt": "2026-08-18T18:19:46.804Z",
+      "freeShipping": true,
+      "showBadge": false,
+      "isNew": false,
+      "active": true
+    }
+  ]
+}
