@@ -267,7 +267,17 @@ export const fetchUsersFromSupabase = async (): Promise<User[] | null> => {
 
 export const deleteUserFromSupabase = async (identifier: string) => {
   try {
-    await supabase.from('users').delete().or(`id.eq.${identifier},email.eq.${identifier},phone.eq.${identifier}`);
+    if (!identifier) return;
+    const clean = identifier.trim().toLowerCase();
+
+    // 1. Delete from users table by id or email
+    await supabase.from('users').delete().or(`id.eq.${identifier},email.ilike.${clean}`);
+
+    // 2. Delete from user_roles
+    await supabase.from('user_roles').delete().eq('user_id', identifier);
+
+    // 3. Sign out from Supabase Auth
+    await supabase.auth.signOut().catch(() => {});
   } catch (e) {
     console.error('Failed to delete user from Supabase:', e);
   }

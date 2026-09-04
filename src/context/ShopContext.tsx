@@ -709,23 +709,18 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
     }));
 
-    const isCurrentActive = currentUser && (
-      currentUser.id === userIdentifier ||
-      (currentUser.email && userEmail && currentUser.email.toLowerCase() === userEmail.toLowerCase()) ||
-      (currentUser.phone && userPhone && currentUser.phone === userPhone)
-    );
+    clearCart();
+    setWishlist([]);
+    setCurrentUser(null);
 
-    if (isCurrentActive) {
-      clearCart();
-      setWishlist([]);
-      setCurrentUser(null);
-      try {
-        localStorage.removeItem('doo_cart_v2');
-        localStorage.removeItem('doo_wishlist_v2');
-        localStorage.removeItem('doo_buyer_session_v4');
-        localStorage.removeItem('doo_buyer_session_v3');
-        localStorage.removeItem('doo_buyer_session_v2');
-      } catch {}
+    try {
+      localStorage.removeItem(STORAGE_USER);
+      localStorage.removeItem(STORAGE_CART);
+      localStorage.removeItem(STORAGE_WISHLIST);
+      localStorage.removeItem('doo_user_cache');
+      localStorage.removeItem('doo_buyer_session_v6');
+    } catch (e) {
+      console.error('Failed to clear storage on delete user:', e);
     }
   }, [registeredUsers, currentUser, clearCart]);
 
