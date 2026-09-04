@@ -274,51 +274,16 @@ export const ProfilePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Action Buttons: Edit, Admin Portal, Logout, Delete Account */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Edit Profile Button */}
-          <button
-            onClick={() => {
-              setEditName(currentUser.name);
-              setEditPhone(currentUser.phone || '');
-              setIsEditModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 rounded-2xl border border-orange-200 bg-orange-50 px-3.5 py-2 text-xs font-bold text-orange-600 hover:bg-orange-100 transition-all"
-            title="تعديل البيانات الشخصية"
+        {/* Admin Portal Button */}
+        {currentUser.role === 'admin' && (
+          <Link
+            to="/admin"
+            className="flex items-center gap-1.5 rounded-2xl bg-gray-900 px-3.5 py-2 text-xs font-black text-white shadow hover:bg-gray-800 transition-all"
           >
-            <Edit3 size={15} />
-            <span>تعديل البيانات</span>
-          </button>
-
-          {currentUser.role === 'admin' && (
-            <Link
-              to="/admin"
-              className="flex items-center gap-1.5 rounded-2xl bg-gray-900 px-3.5 py-2 text-xs font-black text-white shadow hover:bg-gray-800 transition-all"
-            >
-              <ShieldCheck size={15} />
-              <span>لوحة الإدارة</span>
-            </Link>
-          )}
-
-          {/* Logout Button */}
-          <button
-            onClick={logout}
-            className="flex items-center gap-1.5 rounded-2xl border border-gray-200 bg-gray-50 px-3.5 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 transition-all"
-          >
-            <LogOut size={15} />
-            <span>تسجيل الخروج</span>
-          </button>
-
-          {/* Delete Account Button */}
-          <button
-            onClick={() => setIsDeleteModalOpen(true)}
-            className="flex items-center gap-1.5 rounded-2xl border border-red-100 bg-red-50 px-3.5 py-2 text-xs font-bold text-red-600 hover:bg-red-100 transition-all"
-            title="حذف الحساب نهائياً"
-          >
-            <Trash2 size={15} />
-            <span>حذف الحساب</span>
-          </button>
-        </div>
+            <ShieldCheck size={15} />
+            <span>لوحة الإدارة</span>
+          </Link>
+        )}
       </div>
 
       {/* ============================================================ */}
