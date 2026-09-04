@@ -149,59 +149,51 @@ export const signInUserWithSupabase = async (
   try {
     const cleanEmail = email.trim().toLowerCase();
 
-    // 1. Check DB first for exact match by email or phone
-    const { data: existingUsers } = await supabase
+    if (!cleanEmail || !password) {
+      return { ok: false, error: 'يرجى إدخال البريد الإلكتروني وكلمة المرور' };
+    }
+
+    // 1. Verify password via Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password: password
+    });
+
+    if (authError || !authData?.user) {
+      // Check if user exists in DB to give precise security feedback or reject
+      const { data: existingUsers } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', cleanEmail);
+
+      if (existingUsers && existingUsers.length > 0) {
+        return { ok: false, error: 'كلمة المرور غير صحيحة، يرجى التأكد وإعادة المحاولة' };
+      }
+
+      return { ok: false, error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' };
+    }
+
+    // 2. Fetch matched user profile from DB using authenticated user ID
+    const u = authData.user;
+    const { data: profile } = await supabase
       .from('users')
       .select('*')
-      .or(`email.ilike.${cleanEmail},phone.eq.${cleanEmail}`);
+      .eq('id', u.id)
+      .single();
 
-    if (existingUsers && existingUsers.length > 0) {
-      const match = existingUsers[0];
-      const matchedUser: User = {
-        id: match.id,
-        name: match.name,
-        email: match.email || cleanEmail,
-        phone: match.phone || '',
-        role: match.role || 'buyer',
-        joinedAt: match.joined_at || 'اليوم',
-        cart: match.cart || [],
-        wishlist: match.wishlist || [],
-        avatar: match.avatar
-      };
-      return { ok: true, user: matchedUser };
-    }
-
-    // 2. Try Supabase Auth
-    if (cleanEmail && password) {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password
-      });
-
-      if (!authError && authData?.user) {
-        const u = authData.user;
-        const metadata = u.user_metadata || {};
-        const foundUser: User = {
-          id: u.id,
-          name: metadata.name || u.email?.split('@')[0] || 'مستخدم',
-          email: u.email || cleanEmail,
-          phone: metadata.phone || '',
-          role: metadata.role || 'buyer'
-        };
-        return { ok: true, user: foundUser };
-      }
-    }
-
-    const isUserAdmin = cleanEmail.includes('admin') || cleanEmail.includes('مدير');
-    const newUser: User = {
-      id: 'usr-' + Date.now(),
-      name: cleanEmail.split('@')[0] || 'مستخدم',
-      email: cleanEmail,
-      phone: '',
-      role: isUserAdmin ? 'admin' : 'buyer'
+    const metadata = u.user_metadata || {};
+    const foundUser: User = {
+      id: u.id,
+      name: profile?.name || metadata.name || u.email?.split('@')[0] || 'مستخدم',
+      email: u.email || cleanEmail,
+      phone: profile?.phone || metadata.phone || '',
+      role: profile?.role || metadata.role || 'buyer',
+      avatar: profile?.avatar,
+      cart: profile?.cart || [],
+      wishlist: profile?.wishlist || []
     };
 
-    return { ok: true, user: newUser };
+    return { ok: true, user: foundUser };
   } catch (e: any) {
     console.error('Failed to sign in user:', e);
     return { ok: false, error: e.message || 'حدث خطأ أثناء تسجيل الدخول' };
