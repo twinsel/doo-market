@@ -181,6 +181,22 @@ export const signInUserWithSupabase = async (
       .eq('id', u.id)
       .single();
 
+    // If profile row does not exist in DB, the account was deleted! Block sign in!
+    if (!profile) {
+      const { data: dbCheck } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', cleanEmail);
+
+      if (!dbCheck || dbCheck.length === 0) {
+        await supabase.auth.signOut().catch(() => {});
+        return {
+          ok: false,
+          error: 'عذراً، هذا الحساب تم حذفه نهائياً! يمكنك إنشاء حساب جديد بهذا البريد من خيار (إنشاء حساب جديد).'
+        };
+      }
+    }
+
     const metadata = u.user_metadata || {};
     const foundUser: User = {
       id: u.id,
