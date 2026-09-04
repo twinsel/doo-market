@@ -63,25 +63,61 @@ export const signUpUserWithSupabase = async (
   name?: string,
   phone?: string,
   role: 'buyer' | 'admin' = 'buyer'
-): Promise<{ ok: boolean; user?: User; error?: string }> => {
+): Promise<{ ok: boolean; user?: User; error?: string; isAlreadyRegistered?: boolean }> => {
   try {
     const cleanEmail = email.trim().toLowerCase();
 
-    // 1. Sync & update new password in Supabase Auth
+    // 1. Try signing in first with provided password
     if (cleanEmail && password) {
-      await supabase.auth.signUp({
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password
+      });
+
+      if (!signInError && signInData?.user) {
+        const u = signInData.user;
+        const metadata = u.user_metadata || {};
+        const foundUser: User = {
+          id: u.id,
+          name: name?.trim() || metadata.name || u.email?.split('@')[0] || 'مستخدم',
+          email: u.email || cleanEmail,
+          phone: phone?.trim() || metadata.phone || '',
+          role: metadata.role || role || 'buyer'
+        };
+
+        // Update profile in DB
+        try {
+          await supabase.from('users').upsert({
+            id: foundUser.id,
+            name: foundUser.name,
+            email: foundUser.email,
+            phone: foundUser.phone,
+            role: foundUser.role
+          });
+        } catch {}
+
+        return { ok: true, user: foundUser };
+      }
+
+      // 2. Try SignUp in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
         options: {
           data: { name: name || 'مستخدم', phone: phone || '', role }
         }
-      }).catch(() => {});
+      });
 
-      // Overwrite Supabase Auth password to the new password entered
-      await supabase.auth.updateUser({ password }).catch(() => {});
+      if (authError && authError.message.toLowerCase().includes('already registered')) {
+        return {
+          ok: false,
+          isAlreadyRegistered: true,
+          error: 'هذا البريد الإلكتروني مسجل بالفعل بكلمة مرور سابقة! يرجى تسجيل الدخول بكلمة المرور الخاصة بك أو الضغط على (نسيت كلمة المرور؟) لتعيين كلمة مرور جديدة.'
+        };
+      }
     }
 
-    // 2. Check if user already exists in DB
+    // 3. Check DB
     const { data: existingUsers } = await supabase
       .from('users')
       .select('*')
@@ -100,12 +136,6 @@ export const signUpUserWithSupabase = async (
         cart: existing.cart || [],
         wishlist: existing.wishlist || []
       };
-
-      // Update name & phone in DB
-      await supabase.from('users').update({
-        name: updatedUser.name,
-        phone: updatedUser.phone
-      }).eq('id', existing.id);
 
       return { ok: true, user: updatedUser };
     }
