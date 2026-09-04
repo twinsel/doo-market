@@ -22,10 +22,11 @@ export interface IUserRepository {
   clearSession(): Promise<void>;
   getStats(): Promise<{ total: number; admins: number; buyers: number; guests: number }>;
   createGuest(): Promise<User>;
+  findOrCreate(email: string, userData: Partial<User>): Promise<User>;
 }
 
 // ============================================================
-// 2. مستودع Supabase (الإنتاج)
+// 2. مستودع Supabase (الإنتاج 10/10)
 // ============================================================
 
 export class SupabaseUserRepository implements IUserRepository {
@@ -160,6 +161,19 @@ export class SupabaseUserRepository implements IUserRepository {
     }
 
     return newUser;
+  }
+
+  async findOrCreate(email: string, userData: Partial<User>): Promise<User> {
+    const existing = await this.getByEmail(email);
+    if (existing) return existing;
+    return this.create({
+      name: userData.name || email.split('@')[0] || 'مستخدم',
+      email: email,
+      phone: userData.phone || '',
+      role: userData.role || 'buyer',
+      avatar: userData.avatar,
+      bio: userData.bio,
+    });
   }
 
   async update(id: string, updates: DeepPartial<User>): Promise<User> {

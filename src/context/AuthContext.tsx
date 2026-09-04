@@ -39,68 +39,74 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // ============================================================
-// 3. مزود السياق (Provider)
+// 3. مزود السياق (Provider - Supabase Auth Single Source of Truth)
 // ============================================================
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    try {
-      const saved = localStorage.getItem('doo_buyer_session_v6');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-  const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Sync to localStorage
-  useEffect(() => {
-    try {
-      if (user) {
-        localStorage.setItem('doo_buyer_session_v6', JSON.stringify(user));
-        setIsAdmin(user.role === 'admin');
-      } else {
-        localStorage.removeItem('doo_buyer_session_v6');
-        setIsAdmin(false);
-      }
-    } catch (e) {
-      console.error('Failed to sync user session:', e);
-    }
-  }, [user]);
-
-  // Load User on Mount & Listen
+  // Load User from Supabase Auth as Single Source of Truth
   useEffect(() => {
     const loadUser = async () => {
+      setIsLoading(true);
       try {
         const currentUser = await AuthService.getCurrentUser();
+        setUser(currentUser);
         if (currentUser) {
-          setUser(currentUser);
           setIsAdmin(currentUser.role === 'admin');
+          try {
+            localStorage.setItem('doo_user_cache', JSON.stringify(currentUser));
+          } catch {}
         }
       } catch (e) {
-        console.error('Failed to load current user:', e);
+        console.error('Failed to load user:', e);
+        try {
+          const cached = localStorage.getItem('doo_user_cache');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            setUser(parsed);
+            setIsAdmin(parsed.role === 'admin');
+          }
+        } catch {}
+      } finally {
+        setIsLoading(false);
       }
     };
 
     loadUser();
 
+    // Listen to Supabase Auth State Changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
           try {
             const currentUser = await AuthService.getCurrentUser();
+            setUser(currentUser);
             if (currentUser) {
-              setUser(currentUser);
               setIsAdmin(currentUser.role === 'admin');
+              try {
+                localStorage.setItem('doo_user_cache', JSON.stringify(currentUser));
+              } catch {}
             }
           } catch (e) {
-            console.error('Auth state sign in error:', e);
+            console.error('Auth sign in error:', e);
           }
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setIsAdmin(false);
+          try {
+            localStorage.removeItem('doo_user_cache');
+          } catch {}
+        } else if (event === 'USER_UPDATED' && session?.user) {
+          try {
+            const currentUser = await AuthService.getCurrentUser();
+            setUser(currentUser);
+          } catch (e) {
+            console.error('Auth update error:', e);
+          }
         }
       }
     );
@@ -117,6 +123,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userData = await AuthService.login(email, password);
       setUser(userData);
       setIsAdmin(userData.role === 'admin');
+      try {
+        localStorage.setItem('doo_user_cache', JSON.stringify(userData));
+      } catch {}
       return userData;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'حدث خطأ في تسجيل الدخول';
@@ -134,6 +143,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userData = await AuthService.register(data);
       setUser(userData);
       setIsAdmin(userData.role === 'admin');
+      try {
+        localStorage.setItem('doo_user_cache', JSON.stringify(userData));
+      } catch {}
       return userData;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'حدث خطأ في إنشاء الحساب';
@@ -151,6 +163,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await AuthService.logout();
       setUser(null);
       setIsAdmin(false);
+      try {
+        localStorage.removeItem('doo_user_cache');
+      } catch {}
     } catch (err) {
       const message = err instanceof Error ? err.message : 'حدث خطأ في تسجيل الخروج';
       setError(message);
@@ -195,6 +210,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (currentUser) {
         setUser(currentUser);
         setIsAdmin(currentUser.role === 'admin');
+        try {
+          localStorage.setItem('doo_user_cache', JSON.stringify(currentUser));
+        } catch {}
       }
     } catch (error) {
       console.error('Failed to refresh user:', error);
