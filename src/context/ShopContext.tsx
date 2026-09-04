@@ -7,7 +7,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { ShopData, Product, CartItem, Order, User, Review, Category, Banner, Section, StoreSettings } from '../types';
 import { initialShopData } from '../data/initialData';
-import { getStoreSettings, updateStoreSettings } from '../lib/supabase';
+import { supabase, getStoreSettings, updateStoreSettings } from '../lib/supabase';
 import {
   syncOrderToSupabase,
   fetchOrdersFromSupabase,
@@ -678,7 +678,14 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTimeout(() => {
       setCurrentUser(null);
       setIsLoggingOut(false);
-    }, (data.settings.logoutDuration || 3) * 1000);
+      try {
+        localStorage.removeItem(STORAGE_USER);
+        localStorage.removeItem('doo_user_cache');
+        localStorage.removeItem('doo_buyer_session_v6');
+      } catch {}
+      supabase.auth.signOut().catch(() => {});
+      window.location.href = `${window.location.origin}/#/home`;
+    }, (data.settings.logoutDuration || 2) * 1000);
   }, [data.settings.logoutMessage, data.settings.logoutDuration]);
 
   const deleteUser = useCallback((userIdentifier: string) => {
