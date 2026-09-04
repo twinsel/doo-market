@@ -135,16 +135,14 @@ export const ProfilePage: React.FC = () => {
     const targetId = currentUser.id;
 
     try {
-      // 1. Sign out from Supabase Auth FIRST while token is active
-      await supabase.auth.signOut().catch(() => {});
+      // 🔑 Sign out from Supabase Auth FIRST
+      await supabase.auth.signOut();
 
-      // 2. Delete user data from Supabase DB
-      await deleteUserFromSupabase(targetId).catch(() => {});
-
-      // 3. Delete from ShopContext
+      // Delete user data from Supabase
+      await deleteUserFromSupabase(targetId);
       deleteUser(targetId);
 
-      // 4. Wipe localStorage completely
+      // Wipe localStorage
       try {
         localStorage.clear();
       } catch {}
@@ -152,23 +150,16 @@ export const ProfilePage: React.FC = () => {
       setIsDeleting(false);
       setIsDeleteModalOpen(false);
 
-      // 5. Short timeout then redirect to fresh registration page
-      setTimeout(() => {
-        window.location.href = `${window.location.origin}/#/auth?tab=register`;
-      }, 100);
+      window.location.href = `${window.location.origin}/#/auth?tab=register`;
 
     } catch (e) {
       console.error('Delete account error:', e);
       setIsDeleting(false);
+      await supabase.auth.signOut().catch(() => {});
       try {
         localStorage.clear();
       } catch {}
-
-      await supabase.auth.signOut().catch(() => {});
-
-      setTimeout(() => {
-        window.location.href = `${window.location.origin}/#/auth?tab=register`;
-      }, 100);
+      window.location.href = `${window.location.origin}/#/auth?tab=register`;
     }
   };
 
