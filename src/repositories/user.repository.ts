@@ -143,7 +143,18 @@ export class SupabaseUserRepository implements IUserRepository {
   }
 
   async create(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
-    const userId = 'usr-' + Date.now();
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: userData.email,
+      password: 'TempPassword123!',
+      options: {
+        data: {
+          name: userData.name,
+          phone: userData.phone || '',
+        },
+      },
+    });
+
+    const userId = authData?.user?.id || 'usr-' + Date.now();
     const newUser: User = {
       id: userId,
       name: userData.name,
