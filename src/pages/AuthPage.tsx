@@ -477,18 +477,9 @@ export const AuthPage: React.FC = () => {
 
                   {/* Register Error Alert */}
                   {regError && (
-                    <div className="rounded-2xl bg-red-50 border border-red-200 p-3 text-xs font-bold text-red-600 space-y-2 text-right">
-                      <div className="flex items-center gap-2">
-                        <AlertCircle size={16} className="shrink-0" />
-                        <span>{regError}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => { setShowForgotPassword(true); setResetEmail(regEmail); }}
-                        className="block w-full text-center text-xs font-black text-orange-600 bg-orange-100 hover:bg-orange-200 py-2 rounded-xl transition-all"
-                      >
-                        🔑 اضغط هنا لإعادة تعيين كلمة المرور فوراً
-                      </button>
+                    <div className="rounded-2xl bg-red-50 border border-red-200 p-3 text-xs font-bold text-red-600 flex items-center gap-2">
+                      <AlertCircle size={16} />
+                      <span>{regError}</span>
                     </div>
                   )}
 
