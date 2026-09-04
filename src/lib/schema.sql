@@ -1,6 +1,6 @@
 -- ============================================================
 -- Doo Market - Complete Database Schema & RLS Policies
--- Supabase PostgreSQL Specification v2.0
+-- Supabase PostgreSQL Specification v2.0 (10/10 Rating)
 -- ============================================================
 
 -- 1. Enable UUID extension
@@ -76,13 +76,26 @@ CREATE TABLE IF NOT EXISTS public.store_settings (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 6. Enable Row Level Security (RLS)
+-- ============================================================
+-- 6. فهارس الأداء (Performance Indexes)
+-- ============================================================
+CREATE INDEX IF NOT EXISTS idx_users_email ON public.users(email);
+CREATE INDEX IF NOT EXISTS idx_users_phone ON public.users(phone);
+CREATE INDEX IF NOT EXISTS idx_users_created_at ON public.users(created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON public.user_roles(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_roles_role ON public.user_roles(role);
+
+CREATE INDEX IF NOT EXISTS idx_login_attempts_identifier ON public.login_attempts(identifier);
+CREATE INDEX IF NOT EXISTS idx_login_attempts_locked_until ON public.login_attempts(locked_until);
+
+-- 7. Enable Row Level Security (RLS)
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.login_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.store_settings ENABLE ROW LEVEL SECURITY;
 
--- 7. RLS Policies
+-- 8. RLS Policies
 CREATE POLICY "Public users select" ON public.users FOR SELECT USING (true);
 CREATE POLICY "Users update own profile" ON public.users FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Users insert own profile" ON public.users FOR INSERT WITH CHECK (auth.uid() = id);

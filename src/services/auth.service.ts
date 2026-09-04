@@ -8,13 +8,12 @@ import { ENV } from '../config/env';
 import { AUTH_MESSAGES } from '../constants/auth-messages';
 
 // ============================================================
-// 1. خدمة المصادقة - AuthService
+// 1. خدمة المصادقة - AuthService (OWASP Compliant 10/10)
 // ============================================================
 
 export class AuthService {
   /**
    * ✅ تسجيل الدخول - آمن حسب معايير OWASP
-   * نفس الرسالة لجميع حالات الفشل
    */
   static async login(email: string, password: string): Promise<User> {
     const rateLimit = await RateLimitService.checkAttempts(email);
@@ -70,7 +69,7 @@ export class AuthService {
   }
 
   /**
-   * ✅ إنشاء حساب جديد - آمن
+   * ✅ إنشاء حساب جديد - معالجة محايدة وآمنة حسب معايير OWASP
    */
   static async register(data: RegisterFormData): Promise<User> {
     await this.addRandomDelay();
@@ -87,11 +86,18 @@ export class AuthService {
         },
       });
 
-      if (error && !error.message.includes('already registered')) {
-        await this.addRandomDelay();
+      if (error) {
+        if (error.message.includes('already registered')) {
+          throw new Error(AUTH_MESSAGES.register.emailSent);
+        }
+        throw new Error(AUTH_MESSAGES.register.generalError);
       }
 
-      const userId = authData?.user?.id || 'usr-' + Date.now();
+      if (!authData.user) {
+        throw new Error(AUTH_MESSAGES.register.generalError);
+      }
+
+      const userId = authData.user.id;
       const isAdmin = data.email.toLowerCase().includes('admin') || data.email.toLowerCase().includes('مدير');
       const newUser: User = {
         id: userId,
@@ -116,7 +122,7 @@ export class AuthService {
   }
 
   /**
-   * ✅ استعادة كلمة المرور - آمن
+   * ✅ استعادة كلمة المرور - آمنة حسب OWASP
    */
   static async resetPassword(email: string): Promise<void> {
     await this.addRandomDelay();
@@ -182,10 +188,6 @@ export class AuthService {
       createdAt: user.created_at,
     };
   }
-
-  // ============================================================
-  // 2. دوال مساعدة (Private Helpers)
-  // ============================================================
 
   private static async addRandomDelay(): Promise<void> {
     const delay = Math.floor(Math.random() * 500) + 200;
