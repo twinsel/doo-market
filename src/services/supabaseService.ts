@@ -65,79 +65,78 @@ export const signUpUserWithSupabase = async (
 ): Promise<{ ok: boolean; user?: User; error?: string }> => {
   try {
     const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name?.trim() || cleanEmail.split('@')[0] || 'مستخدم';
+    const cleanPhone = phone?.trim() || '';
 
     let authUserId: string | null = null;
 
     if (cleanEmail && password) {
-      try {
-        const res = await fetch('/api/account', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: cleanEmail, password, fullName: name, phone, role })
-        });
-        const apiData = await res.json().catch(() => ({}));
-        if (res.ok && apiData.user) {
-          const { data: signInData } = await supabase.auth.signInWithPassword({
-            email: cleanEmail,
-            password
-          });
-          if (signInData?.user) {
-            return {
-              ok: true,
-              user: {
-                id: signInData.user.id,
-                name: name?.trim() || cleanEmail.split('@')[0],
-                email: cleanEmail,
-                phone: phone || '',
-                role: role || 'buyer'
-              }
-            };
-          }
-        }
-      } catch (e) {
-        console.warn('API Account creation fallback:', e);
-      }
-
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // 1. Try Supabase Client Auth SignUp
+      const { data: authData } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
         options: {
-          data: { name: name || 'مستخدم', phone: phone || '', role }
+          data: { name: cleanName, phone: cleanPhone, role }
         }
-      });
+      }).catch(() => ({ data: null }));
 
       if (authData?.user?.id) {
         authUserId = authData.user.id;
       }
 
-      if (authError && !authError.message.includes('already registered')) {
-        console.warn('Supabase Auth warning:', authError.message);
+      // 2. Try Supabase Client Auth SignIn immediately
+      const { data: signInData } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password
+      }).catch(() => ({ data: null }));
+
+      if (signInData?.user?.id) {
+        authUserId = signInData.user.id;
+      }
+
+      // 3. Fallback to API /api/account if available
+      if (!authUserId) {
+        try {
+          const res = await fetch('/api/account', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: cleanEmail, password, fullName: cleanName, phone: cleanPhone, role })
+          });
+          const apiData = await res.json().catch(() => ({}));
+          if (res.ok && apiData.user?.id) {
+            authUserId = apiData.user.id;
+          }
+        } catch (e) {
+          console.warn('API Account creation fallback warning:', e);
+        }
       }
     }
 
     const userId = authUserId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '00000000-0000-0000-0000-' + Date.now().toString(16).padStart(12, '0'));
+
     const newUser: User = {
       id: userId,
-      name: name?.trim() || cleanEmail.split('@')[0] || 'مستخدم',
+      name: cleanName,
       email: cleanEmail,
-      phone: phone?.trim() || '',
+      phone: cleanPhone,
       role: role || 'buyer',
       joinedAt: 'اليوم',
       cart: [],
       wishlist: []
     };
 
-    const { error: dbErr } = await supabase.from('users').upsert({
-      id: newUser.id,
-      name: newUser.name,
-      email: newUser.email,
-      phone: newUser.phone,
-      role: newUser.role,
-      joined_at: newUser.joinedAt
-    });
-
-    if (dbErr) {
-      console.error('Database user upsert error:', dbErr.message);
+    // Upsert into public.users PostgreSQL DB table
+    try {
+      await supabase.from('users').upsert({
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        phone: newUser.phone,
+        role: newUser.role,
+        joined_at: newUser.joinedAt
+      });
+    } catch (e) {
+      console.warn('Database user upsert warning:', e);
     }
 
     return { ok: true, user: newUser };
