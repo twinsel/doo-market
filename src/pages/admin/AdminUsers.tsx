@@ -21,12 +21,14 @@ import {
   List,
   Search,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw
 } from 'lucide-react';
 import { useShop } from '../../context/ShopContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { fetchUsersFromSupabase } from '../../services/supabaseService';
+import { userRepository } from '../../repositories/user.repository';
 
 // ============================================================
 // 👤  نافذة تفاصيل المستخدم الاحترافية
@@ -466,13 +468,24 @@ export const AdminUsersPage: React.FC = () => {
 
   const { registeredUsers, currentUser, cart, wishlist, data, deleteUser, clearAllUsers } = useShop();
 
-  // Load registered users from Supabase DB on page load
+  // Load registered users from Supabase DB and Repository on page load
   useEffect(() => {
-    fetchUsersFromSupabase().then(fetched => {
-      if (fetched && fetched.length > 0) {
-        setRemoteDbUsers(fetched);
+    const loadDbUsers = async () => {
+      try {
+        const [fetched, repoUsers] = await Promise.all([
+          fetchUsersFromSupabase().catch(() => null),
+          userRepository.getAll().catch(() => [])
+        ]);
+        const merged = [...(fetched || []), ...(repoUsers || [])];
+        if (merged.length > 0) {
+          setRemoteDbUsers(merged);
+        }
+      } catch (e) {
+        console.warn('Load DB users error:', e);
       }
-    });
+    };
+
+    loadDbUsers();
   }, []);
 
   const allUsers = useMemo(() => {
@@ -566,6 +579,30 @@ export const AdminUsersPage: React.FC = () => {
 
         {/* Left Side: Actions (Stats, Toggle, Search) */}
         <div className="relative z-10 flex items-center gap-4">
+          {/* Refresh Real-Time DB Users Button */}
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const [fetched, repoUsers] = await Promise.all([
+                  fetchUsersFromSupabase().catch(() => null),
+                  userRepository.getAll().catch(() => [])
+                ]);
+                const merged = [...(fetched || []), ...(repoUsers || [])];
+                if (merged.length > 0) {
+                  setRemoteDbUsers(merged);
+                }
+              } catch (e) {
+                console.warn('Manual refresh DB users error:', e);
+              }
+            }}
+            className="flex items-center gap-1.5 rounded-full bg-blue-500/20 hover:bg-blue-600 px-3.5 py-1.5 text-[10px] font-black text-blue-300 hover:text-white border border-blue-500/30 shrink-0 transition-all active:scale-95"
+            title="تحديث وجلب كافة الحسابات المسجلة من قاعدة البيانات أونلاين"
+          >
+            <RefreshCw size={13} />
+            <span>تحديث أونلاين 🔄</span>
+          </button>
+
           {/* Purge All Storage Button */}
           <button
             type="button"
