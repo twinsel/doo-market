@@ -176,8 +176,19 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     fetchUsersFromSupabase().then(dbUsers => {
-      if (dbUsers) {
-        setRegisteredUsers(dbUsers);
+      if (dbUsers && dbUsers.length > 0) {
+        setRegisteredUsers(prev => {
+          const merged = [...dbUsers];
+          (prev || []).forEach(localU => {
+            if (localU && !merged.some(m => m.id === localU.id || (m.email && m.email === localU.email))) {
+              merged.push(localU);
+            }
+          });
+          try {
+            localStorage.setItem(STORAGE_USERS_LIST, JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
       }
     });
   }, []);
