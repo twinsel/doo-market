@@ -261,6 +261,21 @@ export const fetchUsersFromSupabase = async (): Promise<User[] | null> => {
 
 export const deleteOwnAccount = async (): Promise<void> => {
   try {
+    await supabase.rpc('delete_own_account');
+  } catch (e) {
+    console.warn('RPC delete_own_account warning:', e);
+  }
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.email) {
+      await supabase.rpc('delete_user_completely', { p_email: user.email.toLowerCase() });
+    }
+  } catch (e) {
+    console.warn('RPC delete_user_completely warning:', e);
+  }
+
+  try {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.access_token) {
       await fetch('/api/account', {
@@ -280,7 +295,13 @@ export const deleteUserFromSupabase = async (identifier: string) => {
     if (!identifier) return;
     const clean = identifier.trim().toLowerCase();
 
-    await deleteOwnAccount();
+    try {
+      await supabase.rpc('delete_own_account');
+    } catch {}
+
+    try {
+      await supabase.rpc('delete_user_completely', { p_email: clean });
+    } catch {}
 
     try {
       await supabase.from('users').delete().or(`id.eq.${identifier},email.ilike.${clean},phone.eq.${clean}`);

@@ -26,7 +26,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useShop } from '../context/ShopContext';
 import { QrCodeCard } from '../components/QrCodeCard';
 import { Order, Address } from '../types';
-import { syncUserToSupabase, deleteUserFromSupabase } from '../services/supabaseService';
+import { syncUserToSupabase, deleteUserFromSupabase, deleteOwnAccount } from '../services/supabaseService';
 
 const getStatusLabel = (status: Order['status']) => {
   switch (status) {
@@ -135,30 +135,35 @@ export const ProfilePage: React.FC = () => {
     const targetEmail = currentUser.email;
 
     try {
-      // 1. Delete from Supabase DB
-      await deleteUserFromSupabase(targetId);
+      // 1. Delete own account via RPC & API
+      await deleteOwnAccount().catch(() => {});
+
+      // 2. Delete user data from Supabase DB tables
+      await deleteUserFromSupabase(targetId).catch(() => {});
       if (targetEmail) {
-        await deleteUserFromSupabase(targetEmail);
+        await deleteUserFromSupabase(targetEmail).catch(() => {});
       }
 
-      // 2. Delete from ShopContext
+      // 3. Clear user from ShopContext
       deleteUser(targetId);
 
-      // 3. Clear all Local Storage items completely
+      // 4. Wipe localStorage and sessionStorage completely
       try {
         localStorage.clear();
+        sessionStorage.clear();
       } catch {}
 
       setIsDeleting(false);
       setIsDeleteModalOpen(false);
 
-      // 4. Force reload / redirect to auth register page freshly
+      // 5. Force redirect to register tab cleanly
       window.location.href = `${window.location.origin}/#/auth?tab=register`;
     } catch (e) {
-      console.error('Delete account error:', e);
+      console.error('Delete account fallback:', e);
       setIsDeleting(false);
       try {
         localStorage.clear();
+        sessionStorage.clear();
       } catch {}
       window.location.href = `${window.location.origin}/#/auth?tab=register`;
     }
