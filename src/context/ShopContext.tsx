@@ -7,12 +7,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { ShopData, Product, CartItem, Order, User, Review, Category, Banner, Section, StoreSettings } from '../types';
 import { initialShopData } from '../data/initialData';
+import { getStoreSettings, updateStoreSettings } from '../lib/supabase';
 import {
   syncOrderToSupabase,
   fetchOrdersFromSupabase,
   syncUserToSupabase,
   fetchUsersFromSupabase,
-  deleteUserFromSupabase
+  deleteUserFromSupabase,
+  syncShopStateToSupabase,
+  fetchShopStateFromSupabase
 } from '../services/supabaseService';
 
 const STORAGE_SHOP_DATA = 'doo_shop_data_v6';
@@ -33,7 +36,7 @@ interface ShopContextType {
   cartCount: number;
   cartTotal: number;
   wishlistCount: number;
-  addToCart: (productId: string, quantity?: number, selectedColor?: string, selectedSize?: string) => { ok: boolean; error?: string };
+  addToCart: (productId: string, quantity?: number, selectedColor?: string, selectedSize?: string) => { ok: boolean; isGuest?: boolean; error?: string };
   removeFromCart: (productId: string, selectedColor?: string, selectedSize?: string) => void;
   updateCartQuantity: (productId: string, quantity: number, selectedColor?: string, selectedSize?: string) => { ok: boolean; error?: string };
   clearCart: () => void;
@@ -82,7 +85,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return {
           ...initialShopData,
           ...parsed,
-          settings: { ...initialShopData.settings, ...parsed.settings },
+          settings: { ...initialShopData.settings, ...parsed.settings, showAnnouncement: false },
           categories: parsed.categories && parsed.categories.length ? parsed.categories : initialShopData.categories,
           products: parsed.products && parsed.products.length ? parsed.products : initialShopData.products,
           banners: parsed.banners && parsed.banners.length ? parsed.banners : initialShopData.banners,
@@ -126,6 +129,45 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         'doo_wishlist_v1', 'doo_wishlist_v2', 'doo_wishlist_v3', 'doo_wishlist_v4', 'doo_wishlist_v5'
       ].forEach(k => localStorage.removeItem(k));
     } catch {}
+
+    // 1. Fetch Store Settings directly from Supabase DB on every page load/refresh
+    getStoreSettings().then(dbSettings => {
+      if (dbSettings) {
+        setData(prev => {
+          const newSettings = {
+            ...prev.settings,
+            ...dbSettings,
+            showAnnouncement: dbSettings.show_announcement ?? dbSettings.showAnnouncement ?? prev.settings.showAnnouncement,
+            announcement: dbSettings.announcement ?? prev.settings.announcement,
+          };
+          const updatedData = { ...prev, settings: newSettings };
+          try {
+            localStorage.setItem(STORAGE_SHOP_DATA, JSON.stringify(updatedData));
+          } catch {}
+          return updatedData;
+        });
+      }
+    });
+
+    // 2. Fetch Full Shop State from Supabase on every refresh
+    fetchShopStateFromSupabase().then(remoteState => {
+      if (remoteState && remoteState.settings) {
+        setData(prev => {
+          const updated = {
+            ...prev,
+            settings: { ...prev.settings, ...remoteState.settings },
+            categories: remoteState.categories && remoteState.categories.length > 0 ? remoteState.categories : prev.categories,
+            banners: remoteState.banners && remoteState.banners.length > 0 ? remoteState.banners : prev.banners,
+            sections: remoteState.sections && remoteState.sections.length > 0 ? remoteState.sections : prev.sections,
+            products: remoteState.products && remoteState.products.length > 0 ? remoteState.products : prev.products
+          };
+          try {
+            localStorage.setItem(STORAGE_SHOP_DATA, JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
+      }
+    });
 
     fetchOrdersFromSupabase().then(dbOrders => {
       if (dbOrders) {
@@ -267,6 +309,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const wishlistCount = wishlist.length;
 
   const addToCart = useCallback((productId: string, quantity = 1, selectedColor?: string, selectedSize?: string) => {
+    const isGuest = !currentUser || currentUser.id.startsWith('guest-');
+    if (isGuest) {
+      return { ok: false, isGuest: true, error: 'يلزم تسجيل الدخول لإضافة المنتجات والشراء' };
+    }
+
     const product = data.products.find(p => String(p.id) === String(productId));
     if (!product) return { ok: false, error: 'المنتج غير موجود' };
 
@@ -662,23 +709,18 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
     }));
 
-    const isCurrentActive = currentUser && (
-      currentUser.id === userIdentifier ||
-      (currentUser.email && userEmail && currentUser.email.toLowerCase() === userEmail.toLowerCase()) ||
-      (currentUser.phone && userPhone && currentUser.phone === userPhone)
-    );
+    clearCart();
+    setWishlist([]);
+    setCurrentUser(null);
 
-    if (isCurrentActive) {
-      clearCart();
-      setWishlist([]);
-      setCurrentUser(null);
-      try {
-        localStorage.removeItem('doo_cart_v2');
-        localStorage.removeItem('doo_wishlist_v2');
-        localStorage.removeItem('doo_buyer_session_v4');
-        localStorage.removeItem('doo_buyer_session_v3');
-        localStorage.removeItem('doo_buyer_session_v2');
-      } catch {}
+    try {
+      localStorage.removeItem(STORAGE_USER);
+      localStorage.removeItem(STORAGE_CART);
+      localStorage.removeItem(STORAGE_WISHLIST);
+      localStorage.removeItem('doo_user_cache');
+      localStorage.removeItem('doo_buyer_session_v6');
+    } catch (e) {
+      console.error('Failed to clear storage on delete user:', e);
     }
   }, [registeredUsers, currentUser, clearCart]);
 
@@ -698,10 +740,26 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [clearCart]);
 
   const updateSettings = useCallback((newSettings: Partial<StoreSettings>) => {
-    setData(prev => ({
-      ...prev,
-      settings: { ...prev.settings, ...newSettings }
-    }));
+    setData(prev => {
+      const updated = {
+        ...prev,
+        settings: { ...prev.settings, ...newSettings }
+      };
+      try {
+        localStorage.setItem(STORAGE_SHOP_DATA, JSON.stringify(updated));
+      } catch {}
+
+      updateStoreSettings({
+        id: 'main',
+        ...updated.settings,
+        show_announcement: updated.settings.showAnnouncement,
+        announcement: updated.settings.announcement,
+      }).catch(() => {});
+
+      syncShopStateToSupabase(updated).catch(() => {});
+
+      return updated;
+    });
   }, []);
 
   const addProduct = useCallback((product: Omit<Product, 'id'>) => {
