@@ -468,9 +468,14 @@ export const AdminUsersPage: React.FC = () => {
     const combined: any[] = [];
     const addedKeys = new Set<string>();
 
-    const listToProcess = [...(registeredUsers || [])];
-    if (currentUser && !listToProcess.some(u => u.id === currentUser.id || (u.email && u.email === currentUser.email))) {
-      listToProcess.unshift(currentUser);
+    const listToProcess = [...(registeredUsers || [])].filter(u =>
+      u && !u.id?.startsWith('guest-') && (u.email || u.phone) && !u.name?.includes('زائر')
+    );
+
+    if (currentUser && !currentUser.id?.startsWith('guest-') && (currentUser.email || currentUser.phone) && !currentUser.name?.includes('زائر')) {
+      if (!listToProcess.some(u => u.id === currentUser.id || (u.email && u.email === currentUser.email))) {
+        listToProcess.unshift(currentUser);
+      }
     }
 
     listToProcess.forEach((uItem: any) => {
