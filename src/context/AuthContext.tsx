@@ -48,12 +48,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load User from Supabase Auth as Single Source of Truth
+  // Load User from Supabase Auth & Local Storage Cache
   useEffect(() => {
     const loadUser = async () => {
       setIsLoading(true);
       try {
-        const currentUser = await AuthService.getCurrentUser();
+        let currentUser = await AuthService.getCurrentUser();
+        if (!currentUser) {
+          const cached = localStorage.getItem('doo_buyer_session_v6') || localStorage.getItem('doo_user_cache');
+          if (cached) {
+            currentUser = JSON.parse(cached);
+          }
+        }
         setUser(currentUser);
         if (currentUser) {
           setIsAdmin(currentUser.role === 'admin');
@@ -63,14 +69,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (e) {
         console.error('Failed to load user:', e);
-        try {
-          const cached = localStorage.getItem('doo_user_cache');
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            setUser(parsed);
-            setIsAdmin(parsed.role === 'admin');
-          }
-        } catch {}
       } finally {
         setIsLoading(false);
       }

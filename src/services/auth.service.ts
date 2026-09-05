@@ -166,26 +166,37 @@ export class AuthService {
    * ✅ الحصول على المستخدم الحالي
    */
   static async getCurrentUser(): Promise<User | null> {
-    const { data: { user }, error } = await supabase.auth.getUser();
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
 
-    if (error || !user) {
-      return null;
+      if (user) {
+        const [profile, role] = await Promise.all([
+          this.getUserProfile(user.id),
+          this.getUserRole(user.id),
+        ]);
+
+        return {
+          id: user.id,
+          name: profile?.name || user.user_metadata?.name || 'مستخدم',
+          email: user.email || '',
+          phone: profile?.phone || user.user_metadata?.phone || '',
+          role: role || 'buyer',
+          avatar: profile?.avatar || user.user_metadata?.avatar,
+          createdAt: user.created_at,
+        };
+      }
+    } catch (e) {
+      console.warn('Supabase Auth getUser fallback:', e);
     }
 
-    const [profile, role] = await Promise.all([
-      this.getUserProfile(user.id),
-      this.getUserRole(user.id),
-    ]);
+    try {
+      const cached = localStorage.getItem('doo_buyer_session_v6') || localStorage.getItem('doo_user_cache');
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch {}
 
-    return {
-      id: user.id,
-      name: profile?.name || user.user_metadata?.name || 'مستخدم',
-      email: user.email || '',
-      phone: profile?.phone || user.user_metadata?.phone || '',
-      role: role || 'buyer',
-      avatar: profile?.avatar || user.user_metadata?.avatar,
-      createdAt: user.created_at,
-    };
+    return null;
   }
 
   private static async addRandomDelay(): Promise<void> {
