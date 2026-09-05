@@ -301,36 +301,56 @@ ALTER TABLE public.login_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.store_settings ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
--- 12. Strict RLS Policies
+-- 12. Strict RLS Policies (Allow Signup for Unauthenticated Users)
 -- ============================================================
 
 -- Allow reading user profiles so Admin Dashboard can display registered users
+DROP POLICY IF EXISTS "Allow public select users" ON public.users;
+DROP POLICY IF EXISTS "Users can read own profile" ON public.users;
+DROP POLICY IF EXISTS "Admins can read all profiles" ON public.users;
 CREATE POLICY "Allow public select users" ON public.users
   FOR SELECT USING (true);
 
+-- Allow new user registration inserts (unauthenticated OR authenticated)
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.users;
+DROP POLICY IF EXISTS "Allow user signup" ON public.users;
+CREATE POLICY "Allow user signup" ON public.users
+  FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
 CREATE POLICY "Users can update own profile" ON public.users
   FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
-CREATE POLICY "Users can insert own profile" ON public.users
-  FOR INSERT WITH CHECK (auth.uid() = id);
-
+DROP POLICY IF EXISTS "Admins can delete profiles" ON public.users;
+DROP POLICY IF EXISTS "Users or Admins can delete own profile" ON public.users;
 CREATE POLICY "Users or Admins can delete own profile" ON public.users
   FOR DELETE USING (
     auth.uid() = id OR
     EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin')
   );
 
+-- User Roles Policies
+DROP POLICY IF EXISTS "Users can read own role" ON public.user_roles;
 CREATE POLICY "Users can read own role" ON public.user_roles
-  FOR SELECT USING (auth.uid() = user_id);
+  FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Allow user role signup" ON public.user_roles;
+DROP POLICY IF EXISTS "Users can insert own role" ON public.user_roles;
+CREATE POLICY "Allow user role signup" ON public.user_roles
+  FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Admins can manage all roles" ON public.user_roles;
 CREATE POLICY "Admins can manage all roles" ON public.user_roles
   FOR ALL USING (
     EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin')
   );
 
+-- Store Settings Policies
+DROP POLICY IF EXISTS "Public read store settings" ON public.store_settings;
 CREATE POLICY "Public read store settings" ON public.store_settings
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Admins manage store settings" ON public.store_settings;
 CREATE POLICY "Admins manage store settings" ON public.store_settings
   FOR ALL USING (
     EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin')
