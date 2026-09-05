@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { 
   Search, 
@@ -43,14 +43,7 @@ export const BrandLogoBadge: React.FC<{ size?: 'sm' | 'md' | 'lg'; className?: s
 };
 
 export const Header: React.FC = () => {
-  const { cartCount, data, searchProducts, isAuthenticated, currentUser } = useShop();
-  const location = useLocation();
-
-  const isGuest = currentUser?.id?.startsWith('guest-') || false;
-  const isRealMember = isAuthenticated && !isGuest;
-  const isAdmin = isRealMember && (currentUser?.role === 'admin' || currentUser?.email?.includes('admin'));
-  const isAuthOrProfilePage = location.pathname === '/profile' || location.pathname === '/auth';
-
+  const { cartCount, data, searchProducts, isAuthenticated } = useShop();
   const [searchQuery, setSearchQuery] = useState('');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -409,7 +402,7 @@ export const Header: React.FC = () => {
 
           {/* Quick Action Icons Right Side */}
           <div className="ms-auto flex items-center gap-1 sm:gap-2">
-            {isRealMember ? (
+            {isAuthenticated ? (
               <>
                 {/* WhatsApp Support Direct Button */}
                 <a
@@ -509,26 +502,26 @@ export const Header: React.FC = () => {
                   <User size={22} />
                 </Link>
               </>
-            ) : isGuest && !isAuthOrProfilePage ? (
-              /* Auth Buttons ONLY when browsing store pages as Guest */
+            ) : (
+              /* Auth Buttons when not logged in */
               <div className="flex items-center gap-1.5 ms-1">
                 <Link
-                  to="/auth?tab=login"
-                  className="rounded-xl bg-slate-100 px-3.5 py-1.5 text-xs font-black text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition-colors shadow-sm"
+                  to="/auth"
+                  className="rounded-xl bg-slate-100 px-3.5 py-1.5 text-xs font-black text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
                 >
                   تسجيل الدخول
                 </Link>
                 <Link
-                  to="/auth?tab=register"
+                  to="/auth"
                   className="rounded-xl bg-gradient-to-r from-orange-500 to-red-500 px-3.5 py-1.5 text-xs font-black text-white shadow-sm hover:opacity-95 transition-all"
                 >
                   اشترك
                 </Link>
               </div>
-            ) : null}
+            )}
 
             {/* Admin Portal Button */}
-            {isAdmin && (
+            {isAuthenticated && (
               <Link
                 to="/admin"
                 className="hidden items-center gap-1 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-gray-800 sm:flex transition-colors"

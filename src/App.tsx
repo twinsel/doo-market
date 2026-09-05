@@ -18,9 +18,7 @@ import { SearchPage } from './pages/SearchPage';
 import { TrackOrderPage } from './pages/TrackOrderPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { AuthPage } from './pages/AuthPage';
-import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { AddReviewPage } from './pages/AddReviewPage';
-import { AuthProvider } from './context/AuthContext';
 
 // Admin Sub-pages (Stage 2)
 import { AdminLayout } from './pages/admin/AdminLayout';
@@ -71,8 +69,7 @@ const AppContent: React.FC = () => {
         <Routes>
           {/* Storefront Routes */}
           <Route element={<StoreLayout />}>
-            <Route index element={<Navigate to="/profile" replace />} />
-            <Route path="home" element={<HomePage />} />
+            <Route index element={<HomePage />} />
             <Route path="categories" element={<CategoriesPage />} />
             <Route path="category/:id" element={<CategoryPage />} />
             <Route path="product/:id" element={<ProductPage />} />
@@ -84,7 +81,6 @@ const AppContent: React.FC = () => {
             <Route path="track-order" element={<TrackOrderPage />} />
             <Route path="checkout" element={<CheckoutPage />} />
             <Route path="auth" element={<AuthPage />} />
-            <Route path="reset-password" element={<ResetPasswordPage />} />
             <Route path="product/:id/review" element={<AddReviewPage />} />
           </Route>
 
@@ -112,11 +108,9 @@ const AppContent: React.FC = () => {
 
 export function App() {
   return (
-    <AuthProvider>
-      <ShopProvider>
-        <AppContent />
-      </ShopProvider>
-    </AuthProvider>
+    <ShopProvider>
+      <AppContent />
+    </ShopProvider>
   );
 }
 

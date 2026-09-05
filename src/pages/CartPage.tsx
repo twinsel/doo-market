@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingBag, Trash2, Minus, Plus, ArrowRight, Tag, Truck } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
@@ -6,20 +6,12 @@ import { CartHoldTimer } from '../components/CartHoldTimer';
 import { QrCodeCard } from '../components/QrCodeCard';
 
 export const CartPage: React.FC = () => {
-  const { cart, cartTotal, removeFromCart, updateCartQuantity, clearCart, getProduct, data, currentUser } = useShop();
+  const { cart, cartTotal, removeFromCart, updateCartQuantity, clearCart, getProduct, data } = useShop();
   const [couponCode, setCouponCode] = useState('');
   const [appliedDiscount, setAppliedDiscount] = useState(0);
   const [couponError, setCouponError] = useState('');
   const [couponSuccess, setCouponSuccess] = useState('');
   const navigate = useNavigate();
-
-  const isGuest = !currentUser || currentUser.id?.startsWith('guest-');
-
-  useEffect(() => {
-    if (isGuest) {
-      navigate('/auth');
-    }
-  }, [isGuest, navigate]);
 
   const currencySymbol = data.settings.currencySymbol || 'ر.س';
   const freeShippingThreshold = data.settings.freeShippingMin || 99;

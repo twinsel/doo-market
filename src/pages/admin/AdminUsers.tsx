@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Users,
   Mail,
@@ -21,15 +21,11 @@ import {
   List,
   Search,
   Trash2,
-  AlertTriangle,
-  RefreshCw
+  AlertTriangle
 } from 'lucide-react';
 import { useShop } from '../../context/ShopContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { fetchUsersFromSupabase } from '../../services/supabaseService';
-import { userRepository } from '../../repositories/user.repository';
-import { supabase } from '../../lib/supabase';
 
 // ============================================================
 // 👤  نافذة تفاصيل المستخدم الاحترافية
@@ -465,74 +461,21 @@ export const AdminUsersPage: React.FC = () => {
   const [initialTab, setInitialTab] = useState<'cart' | 'wishlist' | 'orders'>('cart');
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  const [remoteDbUsers, setRemoteDbUsers] = useState<any[]>([]);
 
   const { registeredUsers, currentUser, cart, wishlist, data, deleteUser, clearAllUsers } = useShop();
-
-  // Load registered users from Supabase DB and subscribe to Real-Time user changes
-  useEffect(() => {
-    const loadDbUsers = async () => {
-      try {
-        const [fetched, repoUsers] = await Promise.all([
-          fetchUsersFromSupabase().catch(() => null),
-          userRepository.getAll().catch(() => [])
-        ]);
-        const merged = [...(fetched || []), ...(repoUsers || [])];
-        if (merged.length > 0) {
-          setRemoteDbUsers(merged);
-        }
-      } catch (e) {
-        console.warn('Load DB users error:', e);
-      }
-    };
-
-    loadDbUsers();
-
-    // Supabase Real-Time WebSocket Channel Subscription
-    const channel = supabase
-      .channel('realtime_admin_users')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, async () => {
-        try {
-          const [fetched, repoUsers] = await Promise.all([
-            fetchUsersFromSupabase().catch(() => null),
-            userRepository.getAll().catch(() => [])
-          ]);
-          const merged = [...(fetched || []), ...(repoUsers || [])];
-          if (merged.length > 0) {
-            setRemoteDbUsers(merged);
-          }
-        } catch (e) {
-          console.warn('Real-time users sync error:', e);
-        }
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
 
   const allUsers = useMemo(() => {
     const combined: any[] = [];
     const addedKeys = new Set<string>();
 
-    const listToProcess = [...remoteDbUsers, ...(registeredUsers || [])].filter(u =>
-      u && !u.id?.startsWith('guest-') && (u.email || u.phone) && !u.name?.includes('زائر')
-    );
-
-    if (currentUser && !currentUser.id?.startsWith('guest-') && (currentUser.email || currentUser.phone) && !currentUser.name?.includes('زائر')) {
-      if (!listToProcess.some(u => u.id === currentUser.id || (u.email && u.email === currentUser.email))) {
-        listToProcess.unshift(currentUser);
-      }
+    const listToProcess = [...(registeredUsers || [])];
+    if (currentUser && !listToProcess.some(u => u.id === currentUser.id || (u.email && u.email === currentUser.email))) {
+      listToProcess.unshift(currentUser);
     }
 
     listToProcess.forEach((uItem: any) => {
       const u = uItem || {};
       const key = (u.email || u.id || '').toLowerCase();
-
-      // Exclude temporary guest visitors (only show users with registered accounts)
-      const isGuest = u.id?.startsWith('guest-') || (!u.email && !u.phone) || u.name?.includes('زائر');
-      if (isGuest) return;
 
       if (key && !addedKeys.has(key)) {
         addedKeys.add(key);
@@ -603,30 +546,6 @@ export const AdminUsersPage: React.FC = () => {
 
         {/* Left Side: Actions (Stats, Toggle, Search) */}
         <div className="relative z-10 flex items-center gap-4">
-          {/* Refresh Real-Time DB Users Button */}
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                const [fetched, repoUsers] = await Promise.all([
-                  fetchUsersFromSupabase().catch(() => null),
-                  userRepository.getAll().catch(() => [])
-                ]);
-                const merged = [...(fetched || []), ...(repoUsers || [])];
-                if (merged.length > 0) {
-                  setRemoteDbUsers(merged);
-                }
-              } catch (e) {
-                console.warn('Manual refresh DB users error:', e);
-              }
-            }}
-            className="flex items-center gap-1.5 rounded-full bg-blue-500/20 hover:bg-blue-600 px-3.5 py-1.5 text-[10px] font-black text-blue-300 hover:text-white border border-blue-500/30 shrink-0 transition-all active:scale-95"
-            title="تحديث وجلب كافة الحسابات المسجلة من قاعدة البيانات أونلاين"
-          >
-            <RefreshCw size={13} />
-            <span>تحديث أونلاين 🔄</span>
-          </button>
-
           {/* Purge All Storage Button */}
           <button
             type="button"

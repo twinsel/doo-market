@@ -141,7 +141,7 @@ export const CheckoutPage: React.FC = () => {
                 <input
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
-                  placeholder="0901234567"
+                  placeholder="0501234567"
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm font-bold outline-none focus:border-orange-500 focus:bg-white"
                 />
               </div>

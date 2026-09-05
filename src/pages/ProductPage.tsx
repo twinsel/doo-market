@@ -22,7 +22,7 @@ import { ProductCard } from '../components/ProductCard';
 export const ProductPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getProduct, addToCart, toggleWishlist, wishlist, data, getProductsByCategory, cart, currentUser } = useShop();
+  const { getProduct, addToCart, toggleWishlist, wishlist, data, getProductsByCategory, cart } = useShop();
 
   const product = getProduct(id || '');
 
@@ -65,24 +65,13 @@ export const ProductPage: React.FC = () => {
 
   const handleAddToCart = () => {
     if (!product || isOutOfStock) return;
-
-    const isGuest = !currentUser || currentUser.id?.startsWith('guest-');
-    if (isGuest) {
-      navigate('/auth');
-      return;
-    }
-
     const result = addToCart(product.id, quantity, selectedColor, selectedSize);
 
     if (result.ok) {
       setAddedSuccess(true);
       setTimeout(() => setAddedSuccess(false), 2000);
     } else {
-      if (result.isGuest) {
-        navigate('/auth');
-      } else if (result.error) {
-        alert(result.error);
-      }
+      alert(result.error);
     }
   };
 
