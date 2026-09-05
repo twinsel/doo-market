@@ -477,6 +477,10 @@ export const AdminUsersPage: React.FC = () => {
       const u = uItem || {};
       const key = (u.email || u.id || '').toLowerCase();
 
+      // Exclude temporary guest visitors (only show users with registered accounts)
+      const isGuest = u.id?.startsWith('guest-') || (!u.email && !u.phone) || u.name?.includes('زائر');
+      if (isGuest) return;
+
       if (key && !addedKeys.has(key)) {
         addedKeys.add(key);
         const isSelf = (currentUser?.email && currentUser.email.toLowerCase() === (u.email || '').toLowerCase()) || currentUser?.id === u.id;

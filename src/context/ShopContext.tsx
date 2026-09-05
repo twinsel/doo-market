@@ -656,20 +656,23 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setCurrentUser(newUser);
 
-    setRegisteredUsers(prev => {
-      const existsIndex = prev.findIndex(u =>
-        u.id === newUser.id ||
-        (u.email && newUser.email && u.email.toLowerCase() === newUser.email.toLowerCase())
-      );
-      if (existsIndex > -1) {
-        const updated = [...prev];
-        updated[existsIndex] = { ...updated[existsIndex], ...newUser };
-        return updated;
-      }
-      return [newUser, ...prev];
-    });
+    // Only add to registeredUsers list if it's NOT a guest visitor
+    if (!newUser.id.startsWith('guest-') && (newUser.email || newUser.phone) && !newUser.name.includes('زائر')) {
+      setRegisteredUsers(prev => {
+        const existsIndex = prev.findIndex(u =>
+          u.id === newUser.id ||
+          (u.email && newUser.email && u.email.toLowerCase() === newUser.email.toLowerCase())
+        );
+        if (existsIndex > -1) {
+          const updated = [...prev];
+          updated[existsIndex] = { ...updated[existsIndex], ...newUser };
+          return updated;
+        }
+        return [newUser, ...prev];
+      });
 
-    syncUserToSupabase(newUser);
+      syncUserToSupabase(newUser);
+    }
   }, []);
 
   const logout = useCallback(() => {
