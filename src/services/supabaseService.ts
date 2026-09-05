@@ -66,6 +66,8 @@ export const signUpUserWithSupabase = async (
   try {
     const cleanEmail = email.trim().toLowerCase();
 
+    let authUserId: string | null = null;
+
     if (cleanEmail && password) {
       try {
         const res = await fetch('/api/account', {
@@ -104,12 +106,16 @@ export const signUpUserWithSupabase = async (
         }
       });
 
+      if (authData?.user?.id) {
+        authUserId = authData.user.id;
+      }
+
       if (authError && !authError.message.includes('already registered')) {
         console.warn('Supabase Auth warning:', authError.message);
       }
     }
 
-    const userId = 'usr-' + Date.now();
+    const userId = authUserId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '00000000-0000-0000-0000-' + Date.now().toString(16).padStart(12, '0'));
     const newUser: User = {
       id: userId,
       name: name?.trim() || cleanEmail.split('@')[0] || 'مستخدم',
@@ -121,7 +127,7 @@ export const signUpUserWithSupabase = async (
       wishlist: []
     };
 
-    await supabase.from('users').upsert({
+    const { error: dbErr } = await supabase.from('users').upsert({
       id: newUser.id,
       name: newUser.name,
       email: newUser.email,
@@ -129,6 +135,10 @@ export const signUpUserWithSupabase = async (
       role: newUser.role,
       joined_at: newUser.joinedAt
     });
+
+    if (dbErr) {
+      console.error('Database user upsert error:', dbErr.message);
+    }
 
     return { ok: true, user: newUser };
   } catch (e: any) {
@@ -173,7 +183,7 @@ export const signInUserWithSupabase = async (
       .from('users')
       .select('*')
       .eq('id', u.id)
-      .single();
+      .maybeSingle();
 
     const metadata = u.user_metadata || {};
     const foundUser: User = {
@@ -186,6 +196,20 @@ export const signInUserWithSupabase = async (
       cart: profile?.cart || [],
       wishlist: profile?.wishlist || []
     };
+
+    // Ensure profile row exists in public.users DB table
+    if (!profile) {
+      try {
+        await supabase.from('users').upsert({
+          id: foundUser.id,
+          name: foundUser.name,
+          email: foundUser.email,
+          phone: foundUser.phone,
+          role: foundUser.role,
+          joined_at: 'اليوم'
+        });
+      } catch {}
+    }
 
     return { ok: true, user: foundUser };
   } catch (e: any) {
