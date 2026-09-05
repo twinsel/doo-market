@@ -44,7 +44,6 @@ export const fetchOrdersFromSupabase = async (): Promise<Order[] | null> => {
       total: Number(item.total),
       status: item.status,
       paymentMethod: item.payment_method,
-      trackingSteps: item.tracking_steps,
       createdAt: item.created_at
     }));
   } catch (e) {
@@ -67,38 +66,36 @@ export const signUpUserWithSupabase = async (
   try {
     const cleanEmail = email.trim().toLowerCase();
 
-    // Check if user already exists in DB
-    const { data: existingUsers } = await supabase
-      .from('users')
-      .select('*')
-      .or(`email.ilike.${cleanEmail},phone.eq.${cleanEmail}`);
-
-    if (existingUsers && existingUsers.length > 0) {
-      const existing = existingUsers[0];
-      const updatedUser: User = {
-        id: existing.id,
-        name: name?.trim() || existing.name || cleanEmail.split('@')[0],
-        email: cleanEmail,
-        phone: phone?.trim() || existing.phone || '',
-        role: existing.role || role || 'buyer',
-        joinedAt: existing.joined_at || 'اليوم',
-        avatar: existing.avatar,
-        cart: existing.cart || [],
-        wishlist: existing.wishlist || []
-      };
-
-      // Update name & phone in DB
-      await supabase.from('users').update({
-        name: updatedUser.name,
-        phone: updatedUser.phone
-      }).eq('id', existing.id);
-
-      return { ok: true, user: updatedUser };
-    }
-
-    let authUserId: string | null = null;
-
     if (cleanEmail && password) {
+      try {
+        const res = await fetch('/api/account', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanEmail, password, fullName: name, phone, role })
+        });
+        const apiData = await res.json().catch(() => ({}));
+        if (res.ok && apiData.user) {
+          const { data: signInData } = await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password
+          });
+          if (signInData?.user) {
+            return {
+              ok: true,
+              user: {
+                id: signInData.user.id,
+                name: name?.trim() || cleanEmail.split('@')[0],
+                email: cleanEmail,
+                phone: phone || '',
+                role: role || 'buyer'
+              }
+            };
+          }
+        }
+      } catch (e) {
+        console.warn('API Account creation fallback:', e);
+      }
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
@@ -107,12 +104,12 @@ export const signUpUserWithSupabase = async (
         }
       });
 
-      if (authData?.user?.id) {
-        authUserId = authData.user.id;
+      if (authError && !authError.message.includes('already registered')) {
+        console.warn('Supabase Auth warning:', authError.message);
       }
     }
 
-    const userId = authUserId || 'usr-' + Date.now();
+    const userId = 'usr-' + Date.now();
     const newUser: User = {
       id: userId,
       name: name?.trim() || cleanEmail.split('@')[0] || 'مستخدم',
@@ -130,9 +127,7 @@ export const signUpUserWithSupabase = async (
       email: newUser.email,
       phone: newUser.phone,
       role: newUser.role,
-      joined_at: newUser.joinedAt,
-      cart: [],
-      wishlist: []
+      joined_at: newUser.joinedAt
     });
 
     return { ok: true, user: newUser };
@@ -160,7 +155,6 @@ export const signInUserWithSupabase = async (
     });
 
     if (authError || !authData?.user) {
-      // Check if user exists in DB to give precise security feedback or reject
       const { data: existingUsers } = await supabase
         .from('users')
         .select('*')
@@ -265,23 +259,37 @@ export const fetchUsersFromSupabase = async (): Promise<User[] | null> => {
   }
 };
 
+export const deleteOwnAccount = async (): Promise<void> => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      await fetch('/api/account', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      }).catch(() => {});
+    }
+  } catch (e) {
+    console.warn('API delete account error:', e);
+  } finally {
+    await supabase.auth.signOut().catch(() => {});
+  }
+};
+
 export const deleteUserFromSupabase = async (identifier: string) => {
   try {
     if (!identifier) return;
     const clean = identifier.trim().toLowerCase();
 
-    // 1. Delete from users table by id or email or phone
-    await supabase.from('users').delete().or(`id.eq.${identifier},email.ilike.${clean},phone.eq.${clean}`);
+    await deleteOwnAccount();
 
-    // 2. Delete from user_roles
-    await supabase.from('user_roles').delete().or(`user_id.eq.${identifier}`);
+    try {
+      await supabase.from('users').delete().or(`id.eq.${identifier},email.ilike.${clean},phone.eq.${clean}`);
+      await supabase.from('user_roles').delete().or(`user_id.eq.${identifier}`);
+    } catch {}
 
-    // 3. Delete from carts & wishlists
-    await supabase.from('carts').delete().or(`user_id.eq.${identifier}`);
-    await supabase.from('wishlists').delete().or(`user_id.eq.${identifier}`);
-
-    // 4. Sign out from Supabase Auth
-    await supabase.auth.signOut().catch(() => {});
+    try {
+      await supabase.auth.signOut();
+    } catch {}
   } catch (e) {
     console.error('Failed to delete user from Supabase:', e);
   }
