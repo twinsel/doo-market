@@ -652,12 +652,21 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       name: user.name || 'مستخدم',
       email: user.email || '',
       phone: user.phone || '',
-      role: user.role || 'buyer'
+      role: user.role || 'buyer',
+      avatar: user.avatar,
+      cart: user.cart || [],
+      wishlist: user.wishlist || []
     };
     setCurrentUser(newUser);
 
-    // Only add to registeredUsers list if it's NOT a guest visitor
-    if (!newUser.id.startsWith('guest-') && (newUser.email || newUser.phone) && !newUser.name.includes('زائر')) {
+    try {
+      localStorage.setItem(STORAGE_USER, JSON.stringify(newUser));
+      localStorage.setItem('doo_user_cache', JSON.stringify(newUser));
+    } catch (e) {
+      console.error('Failed to cache login session:', e);
+    }
+
+    if (!newUser.id.startsWith('guest-') && (newUser.email || newUser.phone)) {
       setRegisteredUsers(prev => {
         const existsIndex = prev.findIndex(u =>
           u.id === newUser.id ||

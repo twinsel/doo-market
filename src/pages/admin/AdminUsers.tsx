@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Users,
   Mail,
@@ -26,6 +26,7 @@ import {
 import { useShop } from '../../context/ShopContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { fetchUsersFromSupabase } from '../../services/supabaseService';
 
 // ============================================================
 // 👤  نافذة تفاصيل المستخدم الاحترافية
@@ -461,14 +462,24 @@ export const AdminUsersPage: React.FC = () => {
   const [initialTab, setInitialTab] = useState<'cart' | 'wishlist' | 'orders'>('cart');
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [remoteDbUsers, setRemoteDbUsers] = useState<any[]>([]);
 
   const { registeredUsers, currentUser, cart, wishlist, data, deleteUser, clearAllUsers } = useShop();
+
+  // Load registered users from Supabase DB on page load
+  useEffect(() => {
+    fetchUsersFromSupabase().then(fetched => {
+      if (fetched && fetched.length > 0) {
+        setRemoteDbUsers(fetched);
+      }
+    });
+  }, []);
 
   const allUsers = useMemo(() => {
     const combined: any[] = [];
     const addedKeys = new Set<string>();
 
-    const listToProcess = [...(registeredUsers || [])].filter(u =>
+    const listToProcess = [...remoteDbUsers, ...(registeredUsers || [])].filter(u =>
       u && !u.id?.startsWith('guest-') && (u.email || u.phone) && !u.name?.includes('زائر')
     );
 
