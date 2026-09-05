@@ -29,6 +29,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { fetchUsersFromSupabase } from '../../services/supabaseService';
 import { userRepository } from '../../repositories/user.repository';
+import { supabase } from '../../lib/supabase';
 
 // ============================================================
 // 👤  نافذة تفاصيل المستخدم الاحترافية
@@ -468,7 +469,7 @@ export const AdminUsersPage: React.FC = () => {
 
   const { registeredUsers, currentUser, cart, wishlist, data, deleteUser, clearAllUsers } = useShop();
 
-  // Load registered users from Supabase DB and Repository on page load
+  // Load registered users from Supabase DB and subscribe to Real-Time user changes
   useEffect(() => {
     const loadDbUsers = async () => {
       try {
@@ -486,6 +487,29 @@ export const AdminUsersPage: React.FC = () => {
     };
 
     loadDbUsers();
+
+    // Supabase Real-Time WebSocket Channel Subscription
+    const channel = supabase
+      .channel('realtime_admin_users')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, async () => {
+        try {
+          const [fetched, repoUsers] = await Promise.all([
+            fetchUsersFromSupabase().catch(() => null),
+            userRepository.getAll().catch(() => [])
+          ]);
+          const merged = [...(fetched || []), ...(repoUsers || [])];
+          if (merged.length > 0) {
+            setRemoteDbUsers(merged);
+          }
+        } catch (e) {
+          console.warn('Real-time users sync error:', e);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const allUsers = useMemo(() => {
