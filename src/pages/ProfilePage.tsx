@@ -107,20 +107,23 @@ export const ProfilePage: React.FC = () => {
   };
 
   // ----- Handlers -----
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
 
+    const newName = editName.trim() || currentUser.name;
+    const newPhone = editPhone.trim();
+
     const updatedUser = {
       ...currentUser,
-      name: editName.trim() || currentUser.name,
-      phone: editPhone.trim() || currentUser.phone
+      name: newName,
+      phone: newPhone
     };
 
     login(updatedUser);
-    syncUserToSupabase(updatedUser);
+    await syncUserToSupabase(updatedUser);
 
-    setEditSuccessMsg('تم تحديث بياناتك بنجاح! ✨');
+    setEditSuccessMsg('تم تحديث بياناتك ورقم الجوال بنجاح! ✨');
     setTimeout(() => {
       setEditSuccessMsg('');
       setIsEditModalOpen(false);
