@@ -218,7 +218,7 @@ export const sendPasswordResetEmail = async (
   }
 };
 
-export const syncUserToSupabase = async (user: User) => {
+export const syncUserToSupabase = async (user: User & { isOnline?: boolean }) => {
   try {
     const { error } = await supabase.from('users').upsert({
       id: user.id,
@@ -229,7 +229,9 @@ export const syncUserToSupabase = async (user: User) => {
       joined_at: user.joinedAt || 'اليوم',
       cart: user.cart || [],
       wishlist: user.wishlist || [],
-      avatar: user.avatar || null
+      avatar: user.avatar || null,
+      is_online: user.isOnline ?? true,
+      last_login_at: new Date().toISOString()
     });
     if (error) console.error('Supabase user sync error:', error);
   } catch (e) {
@@ -251,7 +253,9 @@ export const fetchUsersFromSupabase = async (): Promise<User[] | null> => {
       joinedAt: item.joined_at,
       cart: item.cart,
       wishlist: item.wishlist,
-      avatar: item.avatar
+      avatar: item.avatar,
+      isOnline: item.is_online ?? false,
+      lastLoginAt: item.last_login_at
     }));
   } catch (e) {
     console.error('Failed to fetch users from Supabase:', e);

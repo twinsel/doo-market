@@ -675,11 +675,14 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = useCallback(() => {
     setIsLoggingOut(true);
     setLogoutMsg(data.settings.logoutMessage || 'جاري تسجيل الخروج... نتمنى أن تكون قد استمتعت بتجربة شراء فريدة');
+    if (currentUser) {
+      syncUserToSupabase({ ...currentUser, isOnline: false });
+    }
     setTimeout(() => {
       setCurrentUser(null);
       setIsLoggingOut(false);
     }, (data.settings.logoutDuration || 3) * 1000);
-  }, [data.settings.logoutMessage, data.settings.logoutDuration]);
+  }, [data.settings.logoutMessage, data.settings.logoutDuration, currentUser]);
 
   const deleteUser = useCallback((userIdentifier: string) => {
     if (!userIdentifier) return;

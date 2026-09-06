@@ -518,8 +518,10 @@ export const AdminUsersPage: React.FC = () => {
           (o.customer?.phone && u.phone && o.customer.phone === u.phone)
         );
 
-        // Show active/online green status badge for all registered accounts
-        const userIsOnline = true;
+        // Real-time calculated online status (active session or logged in within last 15 mins)
+        const lastActiveTime = u.lastLoginAt || u.last_login_at || u.updated_at || u.created_at;
+        const isRecentlyActive = lastActiveTime ? (Date.now() - new Date(lastActiveTime).getTime()) < 15 * 60 * 1000 : false;
+        const userIsOnline = isSelf ? true : (u.isOnline === true && isRecentlyActive);
 
         combined.push({
           id: u.id || 'usr-' + Math.random(),
