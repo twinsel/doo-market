@@ -306,44 +306,26 @@ export const deleteOwnAccount = async (): Promise<void> => {
   }
 };
 
-export const deleteUserFromSupabase = async (identifier: string, userEmail?: string) => {
+export const deleteUserFromSupabase = async (identifier: string) => {
   try {
     if (!identifier) return;
-    const cleanId = identifier.trim();
-    const cleanEmail = (userEmail || (cleanId.includes('@') ? cleanId : '')).trim().toLowerCase();
+    const clean = identifier.trim().toLowerCase();
 
-    // 1. If identifier is a UUID, execute admin_delete_user(UUID) directly
-    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId)) {
-      try {
-        await supabase.rpc('admin_delete_user', { target_user_id: cleanId });
-      } catch (e) {
-        console.warn('admin_delete_user RPC warning:', e);
-      }
-    }
-
-    // 2. Call delete_user_completely with cleanEmail or cleanId
-    if (cleanEmail && cleanEmail.includes('@')) {
-      try {
-        await supabase.rpc('delete_user_completely', { p_email: cleanEmail });
-      } catch (e) {
-        console.warn('delete_user_completely RPC warning:', e);
-      }
-    } else {
-      try {
-        await supabase.rpc('delete_user_completely', { p_email: cleanId });
-      } catch (e) {
-        console.warn('delete_user_completely ID warning:', e);
-      }
-    }
-
-    // 3. Direct PostgreSQL table deletes
     try {
-      if (cleanEmail) {
-        await supabase.from('users').delete().or(`id.eq.${cleanId},email.ilike.${cleanEmail}`);
-      } else {
-        await supabase.from('users').delete().eq('id', cleanId);
-      }
-      await supabase.from('user_roles').delete().eq('user_id', cleanId);
+      await supabase.rpc('delete_own_account');
+    } catch {}
+
+    try {
+      await supabase.rpc('delete_user_completely', { p_email: clean });
+    } catch {}
+
+    try {
+      await supabase.from('users').delete().or(`id.eq.${identifier},email.ilike.${clean},phone.eq.${clean}`);
+      await supabase.from('user_roles').delete().or(`user_id.eq.${identifier}`);
+    } catch {}
+
+    try {
+      await supabase.auth.signOut();
     } catch {}
   } catch (e) {
     console.error('Failed to delete user from Supabase:', e);

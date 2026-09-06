@@ -26,7 +26,7 @@ import {
 import { useShop } from '../../context/ShopContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { fetchUsersFromSupabase, deleteUserFromSupabase } from '../../services/supabaseService';
+import { fetchUsersFromSupabase } from '../../services/supabaseService';
 import { supabase } from '../../lib/supabase';
 
 // ============================================================
@@ -557,10 +557,9 @@ export const AdminUsersPage: React.FC = () => {
     setInitialTab(tab);
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = () => {
     if (!userToDelete) return;
-    await deleteUserFromSupabase(userToDelete.id, userToDelete.email);
-    deleteUser(userToDelete.id || userToDelete.email);
+    deleteUser(userToDelete.id || userToDelete.email || userToDelete.phone);
     setUserToDelete(null);
   };
 
