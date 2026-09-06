@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Users,
   Mail,
@@ -26,6 +26,8 @@ import {
 import { useShop } from '../../context/ShopContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { fetchUsersFromSupabase } from '../../services/supabaseService';
+import { supabase } from '../../lib/supabase';
 
 // ============================================================
 // 👤  نافذة تفاصيل المستخدم الاحترافية
@@ -461,14 +463,45 @@ export const AdminUsersPage: React.FC = () => {
   const [initialTab, setInitialTab] = useState<'cart' | 'wishlist' | 'orders'>('cart');
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [remoteDbUsers, setRemoteDbUsers] = useState<any[]>([]);
 
   const { registeredUsers, currentUser, cart, wishlist, data, deleteUser, clearAllUsers } = useShop();
+
+  // Load registered users directly from Supabase DB & listen to real-time user registrations
+  useEffect(() => {
+    const loadDbUsers = async () => {
+      try {
+        const fetched = await fetchUsersFromSupabase();
+        if (fetched && fetched.length > 0) {
+          setRemoteDbUsers(fetched);
+        }
+      } catch (e) {
+        console.warn('Load DB users error:', e);
+      }
+    };
+
+    loadDbUsers();
+
+    const channel = supabase
+      .channel('realtime_admin_users_v3')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, async () => {
+        const fetched = await fetchUsersFromSupabase().catch(() => null);
+        if (fetched && fetched.length > 0) {
+          setRemoteDbUsers(fetched);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const allUsers = useMemo(() => {
     const combined: any[] = [];
     const addedKeys = new Set<string>();
 
-    const listToProcess = [...(registeredUsers || [])];
+    const listToProcess = [...remoteDbUsers, ...(registeredUsers || [])];
     if (currentUser && !listToProcess.some(u => u.id === currentUser.id || (u.email && u.email === currentUser.email))) {
       listToProcess.unshift(currentUser);
     }
