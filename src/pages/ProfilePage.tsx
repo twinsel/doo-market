@@ -27,6 +27,7 @@ import { useShop } from '../context/ShopContext';
 import { QrCodeCard } from '../components/QrCodeCard';
 import { Order, Address } from '../types';
 import { syncUserToSupabase, deleteUserFromSupabase, deleteOwnAccount } from '../services/supabaseService';
+import { supabase } from '../lib/supabase';
 
 const getStatusLabel = (status: Order['status']) => {
   switch (status) {
@@ -121,6 +122,17 @@ export const ProfilePage: React.FC = () => {
     };
 
     login(updatedUser);
+
+    // Directly update phone and name in PostgreSQL public.users DB table
+    try {
+      await supabase.from('users').update({
+        name: newName,
+        phone: newPhone
+      }).eq('id', currentUser.id);
+    } catch (err) {
+      console.warn('Direct DB update warning:', err);
+    }
+
     await syncUserToSupabase(updatedUser);
 
     setEditSuccessMsg('تم تحديث بياناتك ورقم الجوال بنجاح! ✨');
