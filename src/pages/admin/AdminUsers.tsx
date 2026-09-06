@@ -518,10 +518,8 @@ export const AdminUsersPage: React.FC = () => {
           (o.customer?.phone && u.phone && o.customer.phone === u.phone)
         );
 
-        // Real-time calculated online status (active session or logged in within last 15 mins)
-        const lastActiveTime = u.lastLoginAt || u.last_login_at || u.updated_at || u.created_at;
-        const isRecentlyActive = lastActiveTime ? (Date.now() - new Date(lastActiveTime).getTime()) < 15 * 60 * 1000 : false;
-        const userIsOnline = isSelf ? true : (u.isOnline === true && isRecentlyActive);
+        // Real-time presence online status based strictly on active database session
+        const userIsOnline = isSelf ? true : (u.isOnline === true || u.is_online === true);
 
         combined.push({
           id: u.id || 'usr-' + Math.random(),
