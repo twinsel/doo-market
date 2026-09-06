@@ -485,6 +485,10 @@ export const AdminUsersPage: React.FC = () => {
           (o.customer?.phone && u.phone && o.customer.phone === u.phone)
         );
 
+        const lastActiveTime = u.last_login_at || u.lastLoginAt || u.updated_at || u.created_at;
+        const isRecentlyActive = lastActiveTime ? (Date.now() - new Date(lastActiveTime).getTime()) < 60 * 60 * 1000 : false;
+        const userIsOnline = isSelf || isRecentlyActive || u.isOnline === true;
+
         combined.push({
           id: u.id || 'usr-' + Math.random(),
           name: u.name || 'مشترك',
@@ -492,7 +496,7 @@ export const AdminUsersPage: React.FC = () => {
           phone: u.phone || '',
           role: u.role || 'buyer',
           joinedAt: u.joinedAt || 'اليوم',
-          isOnline: isSelf ? true : false,
+          isOnline: userIsOnline,
           avatar: u.avatar || undefined,
           cart: isSelf ? cart : (u.cart || []),
           wishlist: isSelf ? wishlist : (u.wishlist || []),
