@@ -218,6 +218,18 @@ export const sendPasswordResetEmail = async (
   }
 };
 
+export const setUserOnlineStatus = async (userId: string, isOnline: boolean) => {
+  try {
+    if (!userId) return;
+    await supabase.from('users').update({
+      is_online: isOnline,
+      last_login_at: new Date().toISOString()
+    }).eq('id', userId);
+  } catch (e) {
+    console.warn('Failed to update user online status:', e);
+  }
+};
+
 export const syncUserToSupabase = async (user: User & { isOnline?: boolean }) => {
   try {
     const { error } = await supabase.from('users').upsert({

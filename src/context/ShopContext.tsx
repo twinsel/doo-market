@@ -14,6 +14,7 @@ import {
   syncUserToSupabase,
   fetchUsersFromSupabase,
   deleteUserFromSupabase,
+  setUserOnlineStatus,
   syncShopStateToSupabase,
   fetchShopStateFromSupabase
 } from '../services/supabaseService';
@@ -669,13 +670,15 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return [newUser, ...prev];
     });
 
-    syncUserToSupabase(newUser);
+    syncUserToSupabase({ ...newUser, isOnline: true });
+    setUserOnlineStatus(newUser.id, true);
   }, []);
 
   const logout = useCallback(() => {
     setIsLoggingOut(true);
     setLogoutMsg(data.settings.logoutMessage || 'جاري تسجيل الخروج... نتمنى أن تكون قد استمتعت بتجربة شراء فريدة');
-    if (currentUser) {
+    if (currentUser?.id) {
+      setUserOnlineStatus(currentUser.id, false);
       syncUserToSupabase({ ...currentUser, isOnline: false });
     }
     setTimeout(() => {
