@@ -113,26 +113,28 @@ export const ProfilePage: React.FC = () => {
     if (!currentUser) return;
 
     const newName = editName.trim() || currentUser.name;
-    const newPhone = editPhone.trim();
+    const cleanPhone = editPhone.trim() || null;
 
     const updatedUser = {
       ...currentUser,
       name: newName,
-      phone: newPhone
+      phone: cleanPhone || ''
     };
 
-    login(updatedUser);
+    const { error } = await supabase.from('users').update({
+      name: newName,
+      phone: cleanPhone
+    }).eq('id', currentUser.id);
 
-    // Directly update phone and name in PostgreSQL public.users DB table
-    try {
-      await supabase.from('users').update({
-        name: newName,
-        phone: newPhone
-      }).eq('id', currentUser.id);
-    } catch (err) {
-      console.warn('Direct DB update warning:', err);
+    if (error) {
+      if (error.code === '23505') {
+        alert('رقم الجوال هذا مستخدم من قبل حساب آخر بالفعل');
+        return;
+      }
+      console.warn('DB profile update warning:', error.message);
     }
 
+    login(updatedUser);
     await syncUserToSupabase(updatedUser);
 
     setEditSuccessMsg('تم تحديث بياناتك ورقم الجوال بنجاح! ✨');

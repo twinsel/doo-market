@@ -245,16 +245,7 @@ export const syncUserToSupabase = async (user: User & { isOnline?: boolean }) =>
       is_online: user.isOnline ?? true,
       last_login_at: new Date().toISOString()
     });
-
     if (error) console.error('Supabase user sync error:', error);
-
-    // Also sync user metadata to Supabase Auth
-    await supabase.auth.updateUser({
-      data: {
-        name: user.name,
-        phone: user.phone || ''
-      }
-    }).catch(() => {});
   } catch (e) {
     console.error('Failed to sync user to Supabase:', e);
   }
@@ -269,7 +260,7 @@ export const fetchUsersFromSupabase = async (): Promise<User[] | null> => {
       id: item.id,
       name: item.name,
       email: item.email,
-      phone: item.phone,
+      phone: item.phone || '',
       role: item.role,
       joinedAt: item.joined_at,
       cart: item.cart,
