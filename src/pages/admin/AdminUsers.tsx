@@ -501,7 +501,9 @@ export const AdminUsersPage: React.FC = () => {
     const combined: any[] = [];
     const addedKeys = new Set<string>();
 
-    const listToProcess = [...remoteDbUsers, ...(registeredUsers || [])];
+    // Single source of truth: remoteDbUsers if loaded, else registeredUsers
+    const baseList = remoteDbUsers.length > 0 ? remoteDbUsers : (registeredUsers || []);
+    const listToProcess = [...baseList];
     if (currentUser && !listToProcess.some(u => u.id === currentUser.id || (u.email && u.email === currentUser.email))) {
       listToProcess.unshift(currentUser);
     }
