@@ -542,7 +542,7 @@ export const AdminUsersPage: React.FC = () => {
     });
 
     return combined;
-  }, [registeredUsers, currentUser, cart, wishlist, data.orders]);
+  }, [remoteDbUsers, registeredUsers, currentUser, cart, wishlist, data.orders]);
 
   const filteredUsers = useMemo(() => {
     if (!search.trim()) return allUsers;
