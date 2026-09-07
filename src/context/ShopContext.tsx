@@ -66,6 +66,7 @@ interface ShopContextType {
   updateOrderStatus: (orderId: string, status: Order['status']) => void;
   deleteOrder: (orderId: string) => void;
   resetData: () => void;
+  refreshShopState: () => Promise<void>;
   syncStatus: 'idle' | 'loading' | 'synced';
 }
 
@@ -119,6 +120,47 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
+  const refreshShopState = useCallback(async () => {
+    try {
+      const dbSettings = await getStoreSettings().catch(() => null);
+      if (dbSettings) {
+        setData(prev => ({
+          ...prev,
+          settings: {
+            ...prev.settings,
+            ...dbSettings,
+            showAnnouncement: dbSettings.show_announcement ?? dbSettings.showAnnouncement ?? prev.settings.showAnnouncement,
+            announcement: dbSettings.announcement ?? prev.settings.announcement,
+          }
+        }));
+      }
+
+      const remoteState = await fetchShopStateFromSupabase().catch(() => null);
+      if (remoteState && remoteState.settings) {
+        setData(prev => ({
+          ...prev,
+          settings: { ...prev.settings, ...remoteState.settings },
+          categories: remoteState.categories && remoteState.categories.length > 0 ? remoteState.categories : prev.categories,
+          banners: remoteState.banners && remoteState.banners.length > 0 ? remoteState.banners : prev.banners,
+          sections: remoteState.sections && remoteState.sections.length > 0 ? remoteState.sections : prev.sections,
+          products: remoteState.products && remoteState.products.length > 0 ? remoteState.products : prev.products
+        }));
+      }
+
+      const dbOrders = await fetchOrdersFromSupabase().catch(() => null);
+      if (dbOrders) {
+        setData(prev => ({ ...prev, orders: dbOrders }));
+      }
+
+      const dbUsers = await fetchUsersFromSupabase().catch(() => null);
+      if (dbUsers) {
+        setRegisteredUsers(dbUsers);
+      }
+    } catch (e) {
+      console.warn('refreshShopState error:', e);
+    }
+  }, []);
+
   // Clear legacy cached data keys on mount and fetch Supabase real-time data
   useEffect(() => {
     try {
@@ -131,61 +173,22 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ].forEach(k => localStorage.removeItem(k));
     } catch {}
 
-    // 1. Fetch Store Settings directly from Supabase DB on every page load/refresh
-    getStoreSettings().then(dbSettings => {
-      if (dbSettings) {
-        setData(prev => {
-          const newSettings = {
-            ...prev.settings,
-            ...dbSettings,
-            showAnnouncement: dbSettings.show_announcement ?? dbSettings.showAnnouncement ?? prev.settings.showAnnouncement,
-            announcement: dbSettings.announcement ?? prev.settings.announcement,
-          };
-          const updatedData = { ...prev, settings: newSettings };
-          try {
-            localStorage.setItem(STORAGE_SHOP_DATA, JSON.stringify(updatedData));
-          } catch {}
-          return updatedData;
-        });
-      }
-    });
+    refreshShopState();
 
-    // 2. Fetch Full Shop State from Supabase on every refresh
-    fetchShopStateFromSupabase().then(remoteState => {
-      if (remoteState && remoteState.settings) {
-        setData(prev => {
-          const updated = {
-            ...prev,
-            settings: { ...prev.settings, ...remoteState.settings },
-            categories: remoteState.categories && remoteState.categories.length > 0 ? remoteState.categories : prev.categories,
-            banners: remoteState.banners && remoteState.banners.length > 0 ? remoteState.banners : prev.banners,
-            sections: remoteState.sections && remoteState.sections.length > 0 ? remoteState.sections : prev.sections,
-            products: remoteState.products && remoteState.products.length > 0 ? remoteState.products : prev.products
-          };
-          try {
-            localStorage.setItem(STORAGE_SHOP_DATA, JSON.stringify(updated));
-          } catch {}
-          return updated;
-        });
-      }
-    });
-
-    fetchOrdersFromSupabase().then(dbOrders => {
-      if (dbOrders) {
-        setData(prev => ({ ...prev, orders: dbOrders }));
-      }
-    });
-
-    fetchUsersFromSupabase().then(dbUsers => {
-      if (dbUsers) {
-        setRegisteredUsers(dbUsers);
-      }
-    });
+    const shopStateChannel = supabase
+      .channel('realtime_shop_settings_channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'store_settings' }, () => {
+        refreshShopState();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shop_state' }, () => {
+        refreshShopState();
+      })
+      .subscribe();
 
     // Listen to real-time user deletion events (kicks out deleted user instantly)
     const deletionChannel = supabase
       .channel('realtime_user_deletion_channel')
-      .on('broadcast', { event: 'user_deleted' }, (payload) => {
+      .on('broadcast', { event: 'user_deleted' }, (payload: any) => {
         const deletedId = payload?.payload?.userId;
         const deletedEmail = payload?.payload?.email;
 
@@ -208,9 +211,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .subscribe();
 
     return () => {
+      supabase.removeChannel(shopStateChannel);
       supabase.removeChannel(deletionChannel);
     };
-  }, []);
+  }, [refreshShopState]);
 
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
@@ -702,7 +706,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     syncUserToSupabase({ ...newUser, isOnline: true });
     setUserOnlineStatus(newUser.id, true);
-  }, []);
+    refreshShopState();
+  }, [refreshShopState]);
 
   const logout = useCallback(() => {
     setIsLoggingOut(true);
@@ -711,11 +716,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUserOnlineStatus(currentUser.id, false);
       syncUserToSupabase({ ...currentUser, isOnline: false });
     }
+    refreshShopState();
     setTimeout(() => {
       setCurrentUser(null);
       setIsLoggingOut(false);
     }, (data.settings.logoutDuration || 3) * 1000);
-  }, [data.settings.logoutMessage, data.settings.logoutDuration, currentUser]);
+  }, [data.settings.logoutMessage, data.settings.logoutDuration, currentUser, refreshShopState]);
 
   const deleteUser = useCallback((userIdentifier: string) => {
     if (!userIdentifier) return;
@@ -969,6 +975,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateOrderStatus,
         deleteOrder,
         resetData,
+        refreshShopState,
         syncStatus
       }}
     >
