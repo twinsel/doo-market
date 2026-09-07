@@ -312,7 +312,7 @@ export const deleteUserFromSupabase = async (identifier: string, userEmail?: str
     const cleanId = identifier.trim();
     const cleanEmail = (userEmail || (cleanId.includes('@') ? cleanId : '')).trim().toLowerCase();
 
-    // 1. If identifier is a UUID, execute admin_delete_user(UUID) directly
+    // 1. If cleanId is UUID, invoke admin_delete_user(UUID) directly
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId)) {
       try {
         await supabase.rpc('admin_delete_user', { target_user_id: cleanId });
@@ -321,7 +321,7 @@ export const deleteUserFromSupabase = async (identifier: string, userEmail?: str
       }
     }
 
-    // 2. Call delete_user_completely with cleanEmail or cleanId
+    // 2. Invoke delete_user_completely RPC
     if (cleanEmail && cleanEmail.includes('@')) {
       try {
         await supabase.rpc('delete_user_completely', { p_email: cleanEmail });
@@ -336,7 +336,19 @@ export const deleteUserFromSupabase = async (identifier: string, userEmail?: str
       }
     }
 
-    // 3. Direct PostgreSQL table deletes
+    // 3. Broadcast RealTime user deletion event to kick out deleted user from all open browsers
+    try {
+      const channel = supabase.channel('realtime_user_deletion_channel');
+      await channel.send({
+        type: 'broadcast',
+        event: 'user_deleted',
+        payload: { userId: cleanId, email: cleanEmail }
+      });
+    } catch (e) {
+        console.warn('Realtime deletion broadcast warning:', e);
+    }
+
+    // 4. Direct PostgreSQL table deletes
     try {
       if (cleanEmail) {
         await supabase.from('users').delete().or(`id.eq.${cleanId},email.ilike.${cleanEmail}`);

@@ -7,7 +7,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { ShopData, Product, CartItem, Order, User, Review, Category, Banner, Section, StoreSettings } from '../types';
 import { initialShopData } from '../data/initialData';
-import { getStoreSettings, updateStoreSettings } from '../lib/supabase';
+import { getStoreSettings, updateStoreSettings, supabase } from '../lib/supabase';
 import {
   syncOrderToSupabase,
   fetchOrdersFromSupabase,
@@ -181,6 +181,35 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRegisteredUsers(dbUsers);
       }
     });
+
+    // Listen to real-time user deletion events (kicks out deleted user instantly)
+    const deletionChannel = supabase
+      .channel('realtime_user_deletion_channel')
+      .on('broadcast', { event: 'user_deleted' }, (payload) => {
+        const deletedId = payload?.payload?.userId;
+        const deletedEmail = payload?.payload?.email;
+
+        try {
+          const cachedUser = localStorage.getItem(STORAGE_USER);
+          if (cachedUser) {
+            const parsed = JSON.parse(cachedUser);
+            if (parsed && (parsed.id === deletedId || (parsed.email && parsed.email.toLowerCase() === (deletedEmail || '').toLowerCase()))) {
+              localStorage.clear();
+              sessionStorage.clear();
+              setCurrentUser(null);
+              supabase.auth.signOut().catch(() => {});
+              window.location.href = `${window.location.origin}/#/auth?tab=register`;
+            }
+          }
+        } catch (e) {
+          console.warn('User deletion handler error:', e);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(deletionChannel);
+    };
   }, []);
 
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
