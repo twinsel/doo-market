@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   User, 
@@ -99,7 +99,23 @@ export const ProfilePage: React.FC = () => {
     }
   }, [addresses, currentUser?.id]);
 
-  const orders = data.orders || [];
+  // Filter orders strictly for the current logged-in user
+  const orders = useMemo(() => {
+    if (!currentUser) return [];
+    const name = currentUser.name?.trim().toLowerCase();
+    const phone = currentUser.phone?.replace(/\D/g, '');
+
+    return (data.orders || []).filter(o => {
+      if (!o.customer) return false;
+      const cName = o.customer.name?.trim().toLowerCase();
+      const cPhone = o.customer.phone?.replace(/\D/g, '');
+
+      const nameMatch = name && cName && cName === name;
+      const phoneMatch = phone && cPhone && (cPhone.includes(phone) || phone.includes(cPhone));
+
+      return nameMatch || phoneMatch;
+    });
+  }, [data.orders, currentUser]);
 
   const handleSearchOrder = (e: React.FormEvent) => {
     e.preventDefault();
@@ -549,7 +565,7 @@ export const ProfilePage: React.FC = () => {
       {activeTab === 'orders' && (
         <div className="space-y-4">
           {orders.length > 0 ? (
-            orders.map(order => (
+            orders.map((order: Order) => (
               <div
                 key={order.id}
                 className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-black/5 space-y-4"
@@ -574,7 +590,7 @@ export const ProfilePage: React.FC = () => {
                 </div>
 
                 <div className="space-y-2">
-                  {order.items.map((it, i) => (
+                  {order.items.map((it: any, i: number) => (
                     <div key={i} className="flex items-center justify-between text-xs font-bold text-gray-700">
                       <div className="flex items-center gap-2">
                         <img src={it.image} className="h-10 w-10 rounded-xl object-cover" alt="" />
