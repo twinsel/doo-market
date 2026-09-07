@@ -248,10 +248,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [logoutMsg, setLogoutMsg] = useState('');
   const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'synced'>('idle');
 
-  // Save to localStorage
+  // Save to localStorage and Sync to Supabase DB in background
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_SHOP_DATA, JSON.stringify(data));
+      syncShopStateToSupabase(data).catch(() => {});
     } catch (e) {
       console.error('Failed to save shop data:', e);
     }
