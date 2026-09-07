@@ -559,9 +559,23 @@ export const AdminUsersPage: React.FC = () => {
 
   const handleConfirmDelete = async () => {
     if (!userToDelete) return;
-    await deleteUserFromSupabase(userToDelete.id, userToDelete.email);
-    deleteUser(userToDelete.id || userToDelete.email);
+
+    const targetId = userToDelete.id;
+    const targetEmail = userToDelete.email;
+
+    // 1. Instantly filter and remove card from React UI State (0.01s instant update)
+    setRemoteDbUsers(prev => prev.filter(u =>
+      u.id !== targetId &&
+      (!targetEmail || u.email !== targetEmail)
+    ));
+
+    // 2. Delete from ShopContext
+    deleteUser(targetId || targetEmail);
+
     setUserToDelete(null);
+
+    // 3. Delete online from Supabase DB in background
+    await deleteUserFromSupabase(targetId, targetEmail);
   };
 
   return (
