@@ -499,14 +499,18 @@ export const Header: React.FC = () => {
                   </Link>
                 </motion.div>
 
-                {/* Profile Icon */}
+                {/* Profile Icon / Custom Avatar */}
                 <Link
                   to="/profile"
-                  className="relative block rounded-full p-2 text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition-all active:scale-90"
+                  className="relative flex h-9 w-9 items-center justify-center rounded-full overflow-hidden text-gray-600 hover:bg-orange-50 hover:text-orange-600 transition-all active:scale-90 border border-gray-200/80 shadow-sm"
                   aria-label="حسابي"
                   title="صفحة حسابي الشخصي"
                 >
-                  <User size={22} />
+                  {currentUser?.avatar ? (
+                    <img src={currentUser.avatar} className="h-full w-full object-cover" alt={currentUser.name} />
+                  ) : (
+                    <User size={20} />
+                  )}
                 </Link>
               </>
             ) : isGuest && !isAuthOrProfilePage ? (

@@ -20,7 +20,9 @@ import {
   Building,
   Home as HomeIcon,
   Briefcase,
-  Check
+  Check,
+  Camera,
+  Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShop } from '../context/ShopContext';
@@ -51,7 +53,35 @@ export const ProfilePage: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editName, setEditName] = useState(currentUser?.name || '');
   const [editPhone, setEditPhone] = useState(currentUser?.phone || '');
+  const [editAvatar, setEditAvatar] = useState(currentUser?.avatar || '');
   const [editSuccessMsg, setEditSuccessMsg] = useState('');
+
+  const presetAvatars = [
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80'
+  ];
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('حجم الصورة كبير جداً، يرجى اختيار صورة أقل من 5 ميجابايت');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        setEditAvatar(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // ----- Delete Account State -----
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -130,16 +160,19 @@ export const ProfilePage: React.FC = () => {
 
     const newName = editName.trim() || currentUser.name;
     const cleanPhone = editPhone.trim() || null;
+    const newAvatar = editAvatar || undefined;
 
     const updatedUser = {
       ...currentUser,
       name: newName,
-      phone: cleanPhone || ''
+      phone: cleanPhone || '',
+      avatar: newAvatar
     };
 
     const { error } = await supabase.from('users').update({
       name: newName,
-      phone: cleanPhone
+      phone: cleanPhone,
+      avatar: editAvatar || null
     }).eq('id', currentUser.id);
 
     if (error) {
@@ -153,7 +186,7 @@ export const ProfilePage: React.FC = () => {
     login(updatedUser);
     await syncUserToSupabase(updatedUser);
 
-    setEditSuccessMsg('تم تحديث بياناتك ورقم الجوال بنجاح! ✨');
+    setEditSuccessMsg('تم تحديث البيانات والصورة الشخصية بنجاح! ✨');
     setTimeout(() => {
       setEditSuccessMsg('');
       setIsEditModalOpen(false);
@@ -300,8 +333,26 @@ export const ProfilePage: React.FC = () => {
       {/* ============================================================ */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-400 to-red-500 text-2xl font-black text-white shadow-md shadow-orange-500/20 shrink-0">
-            {currentUser.name.charAt(0)}
+          <div className="relative group">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-400 to-red-500 text-2xl font-black text-white shadow-md shadow-orange-500/20 shrink-0 overflow-hidden ring-2 ring-orange-500/20">
+              {currentUser.avatar ? (
+                <img src={currentUser.avatar} className="h-full w-full object-cover" alt={currentUser.name} />
+              ) : (
+                currentUser.name.charAt(0)
+              )}
+            </div>
+            <button
+              onClick={() => {
+                setEditName(currentUser.name);
+                setEditPhone(currentUser.phone || '');
+                setEditAvatar(currentUser.avatar || '');
+                setIsEditModalOpen(true);
+              }}
+              className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-orange-500 text-white shadow-md hover:bg-orange-600 transition-colors"
+              title="تعديل الصورة الشخصية"
+            >
+              <Camera size={12} />
+            </button>
           </div>
           <div>
             <h1 className="text-lg font-black text-gray-900">{currentUser.name}</h1>
@@ -339,7 +390,7 @@ export const ProfilePage: React.FC = () => {
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4"
+              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar"
             >
               <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                 <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
@@ -363,6 +414,56 @@ export const ProfilePage: React.FC = () => {
               )}
 
               <form onSubmit={handleSaveProfile} className="space-y-4">
+                {/* Avatar Selection & Upload */}
+                <div className="space-y-2 text-right">
+                  <label className="block text-xs font-bold text-gray-600">الصورة الشخصية</label>
+                  <div className="flex items-center gap-4">
+                    <div className="relative h-16 w-16 rounded-2xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-black text-xl overflow-hidden shadow-inner shrink-0 ring-2 ring-orange-100">
+                      {editAvatar ? (
+                        <img src={editAvatar} className="h-full w-full object-cover" alt="" />
+                      ) : (
+                        currentUser.name.charAt(0)
+                      )}
+                    </div>
+
+                    <div className="flex-1 space-y-1.5">
+                      <label className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-orange-300 bg-orange-50/50 p-2 text-xs font-black text-orange-600 hover:bg-orange-100 transition-colors cursor-pointer">
+                        <Upload size={14} />
+                        <span>تحميل صورة من جهازك</span>
+                        <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                      </label>
+                      {editAvatar && (
+                        <button
+                          type="button"
+                          onClick={() => setEditAvatar('')}
+                          className="text-[10px] font-bold text-red-500 hover:underline block"
+                        >
+                          إزالة الصورة الشخصية
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Preset Avatars Row */}
+                  <div className="pt-2">
+                    <p className="text-[10px] font-bold text-gray-400 mb-1.5">أو اختر صورة رمزية جاهزة:</p>
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
+                      {presetAvatars.map((url, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setEditAvatar(url)}
+                          className={`h-10 w-10 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${
+                            editAvatar === url ? 'border-orange-500 ring-2 ring-orange-500/30 scale-105' : 'border-gray-200 hover:border-orange-300'
+                          }`}
+                        >
+                          <img src={url} className="h-full w-full object-cover" alt="" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-1 text-right">
                   <label className="block text-xs font-bold text-gray-600">الاسم الكامل</label>
                   <input
