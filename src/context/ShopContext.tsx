@@ -687,9 +687,20 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       name: user.name || 'مستخدم',
       email: user.email || '',
       phone: user.phone || '',
-      role: user.role || 'buyer'
+      role: user.role || 'buyer',
+      avatar: user.avatar,
+      joinedAt: user.joinedAt,
+      cart: user.cart || [],
+      wishlist: user.wishlist || []
     };
     setCurrentUser(newUser);
+
+    try {
+      localStorage.setItem(STORAGE_USER, JSON.stringify(newUser));
+      localStorage.setItem('doo_user_cache', JSON.stringify(newUser));
+    } catch (e) {
+      console.error('Failed to cache login session:', e);
+    }
 
     setRegisteredUsers(prev => {
       const existsIndex = prev.findIndex(u =>
