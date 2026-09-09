@@ -22,7 +22,8 @@ import {
   Briefcase,
   Check,
   Camera,
-  Upload
+  Upload,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShop } from '../context/ShopContext';
@@ -55,6 +56,7 @@ export const ProfilePage: React.FC = () => {
   const [editPhone, setEditPhone] = useState(currentUser?.phone || '');
   const [editAvatar, setEditAvatar] = useState(currentUser?.avatar || '');
   const [editSuccessMsg, setEditSuccessMsg] = useState('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const presetAvatars = [
     'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
@@ -69,15 +71,44 @@ export const ProfilePage: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('حجم الصورة كبير جداً، يرجى اختيار صورة أقل من 5 ميجابايت');
+    if (file.size > 10 * 1024 * 1024) {
+      alert('حجم الصورة كبير جداً، يرجى اختيار صورة أقل من 10 ميجابايت');
       return;
     }
 
     const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === 'string') {
-        setEditAvatar(reader.result);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 320;
+        const MAX_HEIGHT = 320;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          setEditAvatar(compressedDataUrl);
+        }
+      };
+      if (typeof event.target?.result === 'string') {
+        img.src = event.target.result;
       }
     };
     reader.readAsDataURL(file);
@@ -156,7 +187,9 @@ export const ProfilePage: React.FC = () => {
   // ----- Handlers -----
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser) return;
+    if (!currentUser || isSavingProfile) return;
+
+    setIsSavingProfile(true);
 
     const newName = editName.trim() || currentUser.name;
     const cleanPhone = editPhone.trim() || null;
@@ -169,28 +202,37 @@ export const ProfilePage: React.FC = () => {
       avatar: newAvatar
     };
 
-    const { error } = await supabase.from('users').update({
-      name: newName,
-      phone: cleanPhone,
-      avatar: editAvatar || null
-    }).eq('id', currentUser.id);
-
-    if (error) {
-      if (error.code === '23505') {
-        alert('رقم الجوال هذا مستخدم من قبل حساب آخر بالفعل');
-        return;
-      }
-      console.warn('DB profile update warning:', error.message);
-    }
-
+    // 1. Instant local UI update (0.001s)
     login(updatedUser);
-    await syncUserToSupabase(updatedUser);
-
     setEditSuccessMsg('تم تحديث البيانات والصورة الشخصية بنجاح! ✨');
-    setTimeout(() => {
-      setEditSuccessMsg('');
-      setIsEditModalOpen(false);
-    }, 1200);
+
+    // 2. Background async save to Supabase DB
+    try {
+      const { error } = await supabase.from('users').update({
+        name: newName,
+        phone: cleanPhone,
+        avatar: editAvatar || null
+      }).eq('id', currentUser.id);
+
+      if (error) {
+        if (error.code === '23505') {
+          alert('رقم الجوال هذا مستخدم من قبل حساب آخر بالفعل');
+          setIsSavingProfile(false);
+          return;
+        }
+        console.warn('DB profile update warning:', error.message);
+      }
+
+      await syncUserToSupabase(updatedUser).catch(() => {});
+    } catch (err) {
+      console.warn('Profile save async error:', err);
+    } finally {
+      setIsSavingProfile(false);
+      setTimeout(() => {
+        setEditSuccessMsg('');
+        setIsEditModalOpen(false);
+      }, 800);
+    }
   };
 
   const handleConfirmDeleteAccount = async () => {
@@ -499,16 +541,29 @@ export const ProfilePage: React.FC = () => {
                 <div className="flex items-center justify-end gap-2 pt-2">
                   <button
                     type="button"
+                    disabled={isSavingProfile}
                     onClick={() => setIsEditModalOpen(false)}
-                    className="rounded-2xl bg-gray-100 px-5 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-200"
+                    className="rounded-2xl bg-gray-100 px-5 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-200 disabled:opacity-50"
                   >
                     إلغاء
                   </button>
                   <button
                     type="submit"
-                    className="rounded-2xl bg-orange-500 px-6 py-2.5 text-xs font-black text-white shadow-md shadow-orange-500/20 hover:bg-orange-600"
+                    disabled={isSavingProfile}
+                    className={`flex items-center justify-center gap-2 rounded-2xl px-6 py-2.5 text-xs font-black text-white shadow-md transition-all active:scale-95 ${
+                      isSavingProfile
+                        ? 'bg-slate-800 shadow-slate-800/20 cursor-wait'
+                        : 'bg-orange-500 shadow-orange-500/20 hover:bg-orange-600'
+                    }`}
                   >
-                    حفظ التعديلات
+                    {isSavingProfile ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin text-orange-400" />
+                        <span>جاري الحفظ...</span>
+                      </>
+                    ) : (
+                      <span>حفظ التعديلات</span>
+                    )}
                   </button>
                 </div>
               </form>
