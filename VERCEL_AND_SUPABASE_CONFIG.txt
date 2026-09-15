@@ -5,8 +5,8 @@ GitHub + Vercel + Supabase Master Backup Archive v12 (Letter-by-Letter)
 
 1. SUPABASE DATABASE CONFIGURATION (PostgreSQL Schema)
 ------------------------------------------------------------------------
-- Project Reference: plqfewlztgsojgvmygsl
-- Supabase URL: https://plqfewlztgsojgvmygsl.supabase.co
+- Project Reference: cuhopbhqtoxccoflogyy
+- Supabase URL: https://cuhopbhqtoxccoflogyy.supabase.co
 - SQL Migration File: src/lib/schema.sql
 - Realtime Enabled Tables:
   * ALTER PUBLICATION supabase_realtime ADD TABLE public.users;
@@ -33,9 +33,9 @@ GitHub + Vercel + Supabase Master Backup Archive v12 (Letter-by-Letter)
 - Serverless API Routes: /api/account.js (Node.js Handler)
 - Vercel Rewrite Config: vercel.json ({ "source": "/api/(.*)", "destination": "/api/$1" })
 - Configured Environment Variables in Vercel Dashboard:
-  * VITE_SUPABASE_URL = https://plqfewlztgsojgvmygsl.supabase.co
-  * VITE_SUPABASE_ANON_KEY = sb_publishable_mU_PNBeM9V3oi4IrsnVmWw_3w9NBbKh
-  * SUPABASE_SERVICE_ROLE_KEY = sb_secret_2vK-ifNVA2AqR9SLE6AZkw_Drm4v3tZ
+  * VITE_SUPABASE_URL = https://cuhopbhqtoxccoflogyy.supabase.co
+  * VITE_SUPABASE_ANON_KEY = sb_publishable_G9PbwL7JJffxKToCSSnQ-w_G3cYLQMT
+  * SUPABASE_SERVICE_ROLE_KEY = sb_secret_lpiRL6ug9oG2--c5cIWCew_S_KyqxKY
 
 3. GITHUB REPOSITORY CONFIGURATION
 ------------------------------------------------------------------------

@@ -7,8 +7,8 @@ import { UserRole } from '../types';
 // 1. تهيئة العميل (Client Initialization)
 // ============================================================
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://plqfewlztgsojgvmygsl.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_mU_PNBeM9V3oi4IrsnVmWw_3w9NBbKh';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://cuhopbhqtoxccoflogyy.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_G9PbwL7JJffxKToCSSnQ-w_G3cYLQMT';
 
 if (!supabaseAnonKey) {
   console.warn(
