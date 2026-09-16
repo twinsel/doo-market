@@ -178,7 +178,7 @@ export const AuthPage: React.FC = () => {
       <div className="flex-1 flex flex-col justify-between p-6 sm:p-10 lg:p-12 max-w-xl mx-auto w-full">
         {/* Top Header Logo (Mobile Only) */}
         <div className="lg:hidden flex items-center justify-between mb-8">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to={isAuthenticated && !(currentUser?.id?.startsWith('guest-')) ? '/home' : '/auth'} className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-md font-black">
               دُو
             </div>

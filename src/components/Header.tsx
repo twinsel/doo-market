@@ -191,7 +191,7 @@ export const Header: React.FC = () => {
           </button>
 
           {/* Logo Brand */}
-          <Link to="/" className="flex shrink-0 items-center gap-2">
+          <Link to={isRealMember ? '/home' : '/auth'} className="flex shrink-0 items-center gap-2">
             {data.settings.showBrandMark !== false && <BrandLogoBadge />}
             <div className="flex flex-col">
               <div className="text-sm font-black leading-tight text-gray-900 sm:text-base sm:leading-none">
