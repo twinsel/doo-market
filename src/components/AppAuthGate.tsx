@@ -141,9 +141,14 @@ export const AppAuthGate: React.FC<AppAuthGateProps> = ({ onClose }) => {
       >
         {/* Top Header */}
         <div className="flex flex-col items-center text-center space-y-4">
-          <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleGuestEntry}
+            className="flex items-center gap-2 transition-transform hover:scale-105 active:scale-95 cursor-pointer group"
+            title="اضغط للدخول المباشر إلى المتجر"
+          >
             <BrandLogoBadge size="lg" />
-          </div>
+          </button>
 
           <div className="space-y-1">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 px-3.5 py-1 text-xs font-black text-orange-400 border border-orange-500/20">

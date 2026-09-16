@@ -600,14 +600,20 @@ export const AuthPage: React.FC = () => {
         <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl pointer-events-none" />
 
         {/* Top Branding Badge (Static Header with Orange Square Logo) */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-orange-600 font-black text-xl shadow-md border border-white/20 shrink-0">
+        <button
+          type="button"
+          onClick={handleGuestEntry}
+          className="relative z-10 flex items-center gap-3 text-right hover:opacity-90 transition-all cursor-pointer group active:scale-95"
+          title="اضغط للدخول المباشر إلى المتجر"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-orange-600 font-black text-xl shadow-md border border-white/20 shrink-0 group-hover:scale-105 transition-transform">
             دُو
           </div>
           <div className="text-right">
             <h3 className="text-base font-black text-white leading-none">{data.settings.siteName || 'دُو ماركت'}</h3>
+            <span className="text-[10px] text-orange-100 font-bold block mt-1 hover:underline">اضغط للدخول المباشر للمتجر ⚡</span>
           </div>
-        </div>
+        </button>
 
         {/* Campaign Welcome Text (Identical to user's image) */}
         <div className="relative z-10 my-4 space-y-2 text-right border-y border-white/15 py-4">
