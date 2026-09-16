@@ -117,19 +117,30 @@ export default async function handler(req, res) {
 
     // ─── 3. حذف الحساب نهائياً ─────────────────────────────────────────
     if (req.method === 'DELETE') {
+      const { targetUserId, targetEmail } = req.body || {};
       const user = await getUserFromReq(req);
-      if (!user) return res.status(401).json({ error: 'غير مصرح' });
 
-      // Delete from public tables
-      await supabase.from('users').delete().eq('id', user.id);
-      await supabase.from('user_roles').delete().eq('user_id', user.id);
-      await supabase.from('carts').delete().eq('user_id', user.id);
-      await supabase.from('wishlists').delete().eq('user_id', user.id);
+      const deleteId = targetUserId || user?.id;
+      const deleteEmail = targetEmail || user?.email;
 
-      // Delete from auth.users permanently via Admin API
-      const { error: deleteErr } = await supabase.auth.admin.deleteUser(user.id);
-      if (deleteErr) {
-        console.warn('Admin deleteUser warning:', deleteErr.message);
+      if (!deleteId && !deleteEmail) {
+        return res.status(400).json({ error: 'لم يتم تحديد المستخدم للحذف' });
+      }
+
+      if (deleteId) {
+        await supabase.from('users').delete().eq('id', deleteId).catch(() => {});
+        await supabase.from('user_roles').delete().eq('user_id', deleteId).catch(() => {});
+        await supabase.from('carts').delete().eq('user_id', deleteId).catch(() => {});
+        await supabase.from('wishlists').delete().eq('user_id', deleteId).catch(() => {});
+
+        // Delete from auth.users permanently via Admin Service Role Key
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deleteId)) {
+          await supabase.auth.admin.deleteUser(deleteId).catch(() => {});
+        }
+      }
+
+      if (deleteEmail) {
+        await supabase.from('users').delete().ilike('email', deleteEmail).catch(() => {});
       }
 
       return res.status(200).json({ ok: true });

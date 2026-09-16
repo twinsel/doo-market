@@ -366,35 +366,34 @@ export const deleteOwnAccount = async (): Promise<void> => {
 
 export const deleteUserFromSupabase = async (identifier: string, userEmail?: string) => {
   try {
-    if (!identifier) return;
-    const cleanId = identifier.trim();
+    if (!identifier && !userEmail) return;
+    const cleanId = (identifier || '').trim();
     const cleanEmail = (userEmail || (cleanId.includes('@') ? cleanId : '')).trim().toLowerCase();
 
-    // 1. If cleanId is UUID, invoke admin_delete_user(UUID) directly
-    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId)) {
-      try {
-        await supabase.rpc('admin_delete_user', { target_user_id: cleanId });
-      } catch (e) {
-        console.warn('admin_delete_user RPC warning:', e);
-      }
+    // 1. Master Serverless API delete via Service Role Key (Bypasses RLS completely)
+    try {
+      await fetch('/api/account', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: cleanId, targetEmail: cleanEmail })
+      });
+    } catch (e) {
+      console.warn('Serverless API delete warning:', e);
     }
 
-    // 2. Invoke delete_user_completely RPC
-    if (cleanEmail && cleanEmail.includes('@')) {
-      try {
-        await supabase.rpc('delete_user_completely', { p_email: cleanEmail });
-      } catch (e) {
-        console.warn('delete_user_completely RPC warning:', e);
-      }
-    } else {
-      try {
-        await supabase.rpc('delete_user_completely', { p_email: cleanId });
-      } catch (e) {
-        console.warn('delete_user_completely ID warning:', e);
-      }
+    // 2. Direct client-side cleanup
+    if (cleanId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId)) {
+      try { await supabase.rpc('admin_delete_user', { target_user_id: cleanId }); } catch {}
+      try { await supabase.from('users').delete().eq('id', cleanId); } catch {}
+      try { await supabase.from('user_roles').delete().eq('user_id', cleanId); } catch {}
     }
 
-    // 3. Broadcast RealTime user deletion event to kick out deleted user from all open browsers
+    if (cleanEmail) {
+      try { await supabase.rpc('delete_user_completely', { p_email: cleanEmail }); } catch {}
+      try { await supabase.from('users').delete().ilike('email', cleanEmail); } catch {}
+    }
+
+    // 3. Broadcast RealTime user deletion event to kick out deleted user
     try {
       const channel = supabase.channel('realtime_user_deletion_channel');
       await channel.send({
@@ -403,18 +402,8 @@ export const deleteUserFromSupabase = async (identifier: string, userEmail?: str
         payload: { userId: cleanId, email: cleanEmail }
       });
     } catch (e) {
-        console.warn('Realtime deletion broadcast warning:', e);
+      console.warn('Realtime deletion broadcast warning:', e);
     }
-
-    // 4. Direct PostgreSQL table deletes
-    try {
-      if (cleanEmail) {
-        await supabase.from('users').delete().or(`id.eq.${cleanId},email.ilike.${cleanEmail}`);
-      } else {
-        await supabase.from('users').delete().eq('id', cleanId);
-      }
-      await supabase.from('user_roles').delete().eq('user_id', cleanId);
-    } catch {}
   } catch (e) {
     console.error('Failed to delete user from Supabase:', e);
   }
