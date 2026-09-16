@@ -263,6 +263,18 @@ export const setUserOnlineStatus = async (userId: string, isOnline: boolean, use
         last_login_at: new Date().toISOString()
       }).eq('id', userId);
     }
+
+    // Broadcast instant real-time presence status event
+    try {
+      const channel = supabase.channel('presence_status_channel');
+      await channel.send({
+        type: 'broadcast',
+        event: 'presence_changed',
+        payload: { userId, email: cleanEmail, isOnline }
+      });
+    } catch (e) {
+      console.warn('Presence broadcast warning:', e);
+    }
   } catch (e) {
     console.warn('Failed to update user online status:', e);
   }

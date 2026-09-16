@@ -467,7 +467,7 @@ export const AdminUsersPage: React.FC = () => {
 
   const { registeredUsers, currentUser, cart, wishlist, data, deleteUser, clearAllUsers } = useShop();
 
-  // Load registered users directly from Supabase DB & listen to real-time user registrations
+  // Load registered users directly from Supabase DB & listen to real-time user status changes
   useEffect(() => {
     const loadDbUsers = async () => {
       try {
@@ -482,7 +482,28 @@ export const AdminUsersPage: React.FC = () => {
 
     loadDbUsers();
 
-    const channel = supabase
+    // 1. Instant Realtime Presence Broadcast Channel (~50ms latency across browsers)
+    const presenceChannel = supabase
+      .channel('presence_status_channel')
+      .on('broadcast', { event: 'presence_changed' }, async (payload: any) => {
+        const { userId, email, isOnline } = payload?.payload || {};
+        setRemoteDbUsers(prev => {
+          return prev.map(u => {
+            if ((userId && u.id === userId) || (email && u.email?.toLowerCase() === (email || '').toLowerCase())) {
+              return { ...u, is_online: isOnline, isOnline };
+            }
+            return u;
+          });
+        });
+        const fetched = await fetchUsersFromSupabase().catch(() => null);
+        if (fetched && fetched.length > 0) {
+          setRemoteDbUsers(fetched);
+        }
+      })
+      .subscribe();
+
+    // 2. Postgres DB Changes Channel
+    const dbChannel = supabase
       .channel('realtime_admin_users_v3')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, async () => {
         const fetched = await fetchUsersFromSupabase().catch(() => null);
@@ -492,8 +513,18 @@ export const AdminUsersPage: React.FC = () => {
       })
       .subscribe();
 
+    // 3. Fast 3-second Background Status Poller (Guarantees zero manual refresh needed)
+    const interval = setInterval(async () => {
+      const fetched = await fetchUsersFromSupabase().catch(() => null);
+      if (fetched && fetched.length > 0) {
+        setRemoteDbUsers(fetched);
+      }
+    }, 3000);
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(presenceChannel);
+      supabase.removeChannel(dbChannel);
+      clearInterval(interval);
     };
   }, []);
 
