@@ -247,13 +247,22 @@ export const sendPasswordResetEmail = async (
   }
 };
 
-export const setUserOnlineStatus = async (userId: string, isOnline: boolean) => {
+export const setUserOnlineStatus = async (userId: string, isOnline: boolean, userEmail?: string) => {
   try {
-    if (!userId || userId.startsWith('usr-') || userId.startsWith('guest-')) return;
-    await supabase.from('users').update({
-      is_online: isOnline,
-      last_login_at: new Date().toISOString()
-    }).eq('id', userId);
+    if (!userId && !userEmail) return;
+    const cleanEmail = userEmail?.trim().toLowerCase();
+
+    if (cleanEmail) {
+      await supabase.from('users').update({
+        is_online: isOnline,
+        last_login_at: new Date().toISOString()
+      }).or(`id.eq.${userId},email.ilike.${cleanEmail}`);
+    } else {
+      await supabase.from('users').update({
+        is_online: isOnline,
+        last_login_at: new Date().toISOString()
+      }).eq('id', userId);
+    }
   } catch (e) {
     console.warn('Failed to update user online status:', e);
   }

@@ -726,25 +726,25 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     syncUserToSupabase({ ...newUser, isOnline: true });
-    setUserOnlineStatus(newUser.id, true);
+    setUserOnlineStatus(newUser.id, true, newUser.email);
     refreshShopState();
   }, [refreshShopState]);
 
   const logout = useCallback(() => {
     setIsLoggingOut(true);
     setLogoutMsg(data.settings.logoutMessage || 'جاري تسجيل الخروج... نتمنى أن تكون قد استمتعت بتجربة شراء فريدة');
-    if (currentUser?.id) {
-      setUserOnlineStatus(currentUser.id, false);
+    if (currentUser) {
+      setUserOnlineStatus(currentUser.id, false, currentUser.email);
       syncUserToSupabase({ ...currentUser, isOnline: false });
     }
     supabase.auth.signOut().catch(() => {});
+    try {
+      localStorage.removeItem(STORAGE_USER);
+      sessionStorage.clear();
+    } catch {}
+    setCurrentUser(null);
     refreshShopState();
     setTimeout(() => {
-      try {
-        localStorage.removeItem(STORAGE_USER);
-        sessionStorage.clear();
-      } catch {}
-      setCurrentUser(null);
       setIsLoggingOut(false);
     }, (data.settings.logoutDuration || 3) * 1000);
   }, [data.settings.logoutMessage, data.settings.logoutDuration, currentUser, refreshShopState]);
