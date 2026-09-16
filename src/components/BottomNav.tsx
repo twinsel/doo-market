@@ -45,23 +45,7 @@ export const BottomNav: React.FC = () => {
   return (
     <div className="fixed inset-x-0 bottom-0 z-[100] lg:hidden select-none" dir="ltr">
       <div className="relative mx-auto max-w-md overflow-visible">
-        {/* Floating Active Label Pill above the Notch */}
-        <div className="absolute bottom-[72px] left-0 right-0 h-0 pointer-events-none">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeIndex}
-              initial={{ opacity: 0, scale: 0.5, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.5, y: 10 }}
-              className="absolute text-center"
-              style={{ left: `${activeIndex * step}%`, width: `${step}%` }}
-            >
-              <span className="inline-block rounded-full bg-orange-600 px-2.5 py-0.5 text-[9px] font-black text-white shadow-lg border border-orange-400/50">
-                {navItems[activeIndex].label}
-              </span>
-            </motion.div>
-          </AnimatePresence>
-        </div>
+
 
         {/* Curved Navigation Bar Container */}
         <nav className="relative w-full" style={{ height: 'calc(50px + env(safe-area-inset-bottom, 0px))' }}>
