@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   name TEXT NOT NULL,
   email TEXT NOT NULL,
   phone TEXT NULL,
+  role TEXT NULL DEFAULT 'buyer',
+  joined_at TEXT NULL DEFAULT 'اليوم',
   avatar TEXT NULL,
   bio TEXT NULL,
   birth_date DATE NULL,
@@ -124,24 +126,30 @@ END $$;
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  v_role TEXT;
 BEGIN
-  INSERT INTO public.users (id, name, email, phone)
+  v_role := COALESCE(NEW.raw_user_meta_data->>'role', 'buyer');
+
+  INSERT INTO public.users (id, name, email, phone, role, joined_at)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1), 'مستخدم'),
     NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'phone', NULL)
+    COALESCE(NEW.raw_user_meta_data->>'phone', NULL),
+    v_role,
+    'اليوم'
   )
   ON CONFLICT (id) DO UPDATE
   SET
     name = EXCLUDED.name,
     email = EXCLUDED.email,
-    phone = EXCLUDED.phone;
+    phone = EXCLUDED.phone,
+    role = EXCLUDED.role;
 
-  -- Strictly default to 'buyer'
   INSERT INTO public.user_roles (user_id, role)
-  VALUES (NEW.id, 'buyer')
-  ON CONFLICT (user_id) DO NOTHING;
+  VALUES (NEW.id, v_role)
+  ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role;
 
   RETURN NEW;
 END;

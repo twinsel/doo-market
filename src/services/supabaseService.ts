@@ -65,63 +65,82 @@ export const signUpUserWithSupabase = async (
 ): Promise<{ ok: boolean; user?: User; error?: string }> => {
   try {
     const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name?.trim() || cleanEmail.split('@')[0] || 'مستخدم';
+    const cleanPhone = phone?.trim() || '';
+
+    let authenticatedUserId: string | null = null;
 
     if (cleanEmail && password) {
       try {
         const res = await fetch('/api/account', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: cleanEmail, password, fullName: name, phone, role })
+          body: JSON.stringify({ email: cleanEmail, password, fullName: cleanName, phone: cleanPhone, role })
         });
         const apiData = await res.json().catch(() => ({}));
         if (res.ok && apiData.user) {
+          authenticatedUserId = apiData.user.id;
           const { data: signInData } = await supabase.auth.signInWithPassword({
             email: cleanEmail,
             password
           });
           if (signInData?.user) {
-            return {
-              ok: true,
-              user: {
-                id: signInData.user.id,
-                name: name?.trim() || cleanEmail.split('@')[0],
-                email: cleanEmail,
-                phone: phone || '',
-                role: role || 'buyer'
-              }
-            };
+            authenticatedUserId = signInData.user.id;
+          }
+        } else if (apiData.error) {
+          if (apiData.error.includes('مسجل مسبقاً') || apiData.error.includes('already')) {
+            return { ok: false, error: 'البريد الإلكتروني مسجل مسبقاً' };
           }
         }
       } catch (e) {
-        console.warn('API Account creation fallback:', e);
+        console.warn('API Account creation fallback to Supabase Client:', e);
       }
 
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password,
-        options: {
-          data: { name: name || 'مستخدم', phone: phone || '', role }
-        }
-      });
+      if (!authenticatedUserId) {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password,
+          options: {
+            data: { name: cleanName, phone: cleanPhone, role }
+          }
+        });
 
-      if (authError && !authError.message.includes('already registered')) {
-        console.warn('Supabase Auth warning:', authError.message);
+        if (authError) {
+          if (authError.message.includes('already registered')) {
+            return { ok: false, error: 'البريد الإلكتروني مسجل مسبقاً' };
+          }
+          console.warn('Supabase Auth warning:', authError.message);
+        }
+
+        if (authData?.user) {
+          authenticatedUserId = authData.user.id;
+        }
       }
     }
 
-    const userId = 'usr-' + Date.now();
+    if (!authenticatedUserId) {
+      const currentAuthUser = (await supabase.auth.getUser()).data.user;
+      if (currentAuthUser) {
+        authenticatedUserId = currentAuthUser.id;
+      }
+    }
+
+    if (!authenticatedUserId) {
+      return { ok: false, error: 'تعذر إنشاء الحساب في Supabase Auth' };
+    }
+
     const newUser: User = {
-      id: userId,
-      name: name?.trim() || cleanEmail.split('@')[0] || 'مستخدم',
+      id: authenticatedUserId,
+      name: cleanName,
       email: cleanEmail,
-      phone: phone?.trim() || '',
+      phone: cleanPhone,
       role: role || 'buyer',
       joinedAt: 'اليوم',
       cart: [],
       wishlist: []
     };
 
-    await supabase.from('users').upsert({
+    const { error: dbError } = await supabase.from('users').upsert({
       id: newUser.id,
       name: newUser.name,
       email: newUser.email,
@@ -129,6 +148,10 @@ export const signUpUserWithSupabase = async (
       role: newUser.role,
       joined_at: newUser.joinedAt
     });
+
+    if (dbError) {
+      console.error('Supabase users table insert error:', dbError);
+    }
 
     return { ok: true, user: newUser };
   } catch (e: any) {
@@ -220,7 +243,7 @@ export const sendPasswordResetEmail = async (
 
 export const setUserOnlineStatus = async (userId: string, isOnline: boolean) => {
   try {
-    if (!userId) return;
+    if (!userId || userId.startsWith('usr-') || userId.startsWith('guest-')) return;
     await supabase.from('users').update({
       is_online: isOnline,
       last_login_at: new Date().toISOString()
@@ -232,6 +255,7 @@ export const setUserOnlineStatus = async (userId: string, isOnline: boolean) => 
 
 export const syncUserToSupabase = async (user: User & { isOnline?: boolean }) => {
   try {
+    if (!user.id || user.id.startsWith('usr-') || user.id.startsWith('guest-')) return;
     const { error } = await supabase.from('users').upsert({
       id: user.id,
       name: user.name,
@@ -239,8 +263,6 @@ export const syncUserToSupabase = async (user: User & { isOnline?: boolean }) =>
       phone: user.phone || '',
       role: user.role || 'buyer',
       joined_at: user.joinedAt || 'اليوم',
-      cart: user.cart || [],
-      wishlist: user.wishlist || [],
       avatar: user.avatar || null,
       is_online: user.isOnline ?? true,
       last_login_at: new Date().toISOString()
@@ -258,13 +280,13 @@ export const fetchUsersFromSupabase = async (): Promise<User[] | null> => {
 
     return data.map((item: any) => ({
       id: item.id,
-      name: item.name,
-      email: item.email,
+      name: item.name || 'مستخدم',
+      email: item.email || '',
       phone: item.phone || '',
-      role: item.role,
-      joinedAt: item.joined_at,
-      cart: item.cart,
-      wishlist: item.wishlist,
+      role: item.role || 'buyer',
+      joinedAt: item.joined_at || 'اليوم',
+      cart: [],
+      wishlist: [],
       avatar: item.avatar,
       isOnline: item.is_online ?? false,
       lastLoginAt: item.last_login_at
