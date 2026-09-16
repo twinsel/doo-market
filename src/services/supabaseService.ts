@@ -334,34 +334,46 @@ export const fetchUsersFromSupabase = async (): Promise<User[] | null> => {
 };
 
 export const deleteOwnAccount = async (): Promise<void> => {
-  try {
-    await supabase.rpc('delete_own_account');
-  } catch (e) {
-    console.warn('RPC delete_own_account warning:', e);
-  }
+  let userEmail = '';
+  let userId = '';
 
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (user?.email) {
-      await supabase.rpc('delete_user_completely', { p_email: user.email.toLowerCase() });
+    if (user) {
+      userId = user.id;
+      userEmail = user.email || '';
     }
-  } catch (e) {
-    console.warn('RPC delete_user_completely warning:', e);
-  }
+  } catch {}
 
+  // 1. Master Serverless API delete via Service Role Key
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      await fetch('/api/account', {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${session.access_token}` }
-      }).catch(() => {});
-    }
+    await fetch('/api/account', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetUserId: userId, targetEmail: userEmail })
+    });
   } catch (e) {
     console.warn('API delete account error:', e);
-  } finally {
-    await supabase.auth.signOut().catch(() => {});
   }
+
+  // 2. RPC cleanup
+  try { await supabase.rpc('delete_own_account'); } catch {}
+  if (userEmail) {
+    try { await supabase.rpc('delete_user_completely', { p_email: userEmail.toLowerCase() }); } catch {}
+  }
+
+  // 3. Broadcast Realtime deletion event to instantly remove user card from Admin Dashboard
+  try {
+    const channel = supabase.channel('realtime_user_deletion_channel');
+    await channel.send({
+      type: 'broadcast',
+      event: 'user_deleted',
+      payload: { userId, email: userEmail }
+    });
+  } catch {}
+
+  // 4. Sign out
+  await supabase.auth.signOut().catch(() => {});
 };
 
 export const deleteUserFromSupabase = async (identifier: string, userEmail?: string) => {
