@@ -510,6 +510,11 @@ export const AdminUsersPage: React.FC = () => {
 
     listToProcess.forEach((uItem: any) => {
       const u = uItem || {};
+      // Skip anonymous guest users from admin users management
+      if (u.id?.startsWith('guest-') || u.name === 'زائر المتجر' || u.role === 'guest') {
+        return;
+      }
+
       const key = (u.email || u.id || '').toLowerCase();
 
       if (key && !addedKeys.has(key)) {
