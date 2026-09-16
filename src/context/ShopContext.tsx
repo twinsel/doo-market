@@ -183,6 +183,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shop_state' }, () => {
         refreshShopState();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+        refreshShopState();
+      })
       .subscribe();
 
     // Listen to real-time user deletion events (kicks out deleted user instantly)
@@ -261,6 +264,13 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Failed to save shop data:', e);
     }
   }, [data]);
+
+  // Sync current user to Supabase DB
+  useEffect(() => {
+    if (currentUser && !currentUser.id?.startsWith('guest-')) {
+      syncUserToSupabase(currentUser).catch(() => {});
+    }
+  }, [currentUser]);
 
   // Cart reservation cleanup
   useEffect(() => {

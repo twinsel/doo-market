@@ -261,9 +261,17 @@ export const setUserOnlineStatus = async (userId: string, isOnline: boolean) => 
 
 export const syncUserToSupabase = async (user: User & { isOnline?: boolean }) => {
   try {
-    if (!user.id || user.id.startsWith('usr-') || user.id.startsWith('guest-')) return;
+    if (!user || user.id?.startsWith('guest-')) return;
+
+    let targetId = user.id;
+    if (!targetId || targetId.startsWith('usr-') || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetId)) {
+      targetId = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0');
+    }
+
     const { error } = await supabase.from('users').upsert({
-      id: user.id,
+      id: targetId,
       name: user.name,
       email: user.email || '',
       phone: user.phone || '',
@@ -273,7 +281,8 @@ export const syncUserToSupabase = async (user: User & { isOnline?: boolean }) =>
       is_online: user.isOnline ?? true,
       last_login_at: new Date().toISOString()
     });
-    if (error) console.error('Supabase user sync error:', error);
+
+    if (error) console.error('Supabase user sync error:', error.message);
   } catch (e) {
     console.error('Failed to sync user to Supabase:', e);
   }
