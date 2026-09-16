@@ -72,45 +72,45 @@ export const signUpUserWithSupabase = async (
     let authErrorMessage: string | null = null;
 
     if (cleanEmail && password) {
-      // 1. Direct Supabase auth.signUp
+      // 1. Try serverless API route (/api/account) first using Service Role Key
       try {
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: cleanEmail,
-          password,
-          options: {
-            data: { name: cleanName, phone: cleanPhone, role }
-          }
+        const res = await fetch('/api/account', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanEmail, password, fullName: cleanName, phone: cleanPhone, role })
         });
-
-        if (authData?.user?.id) {
-          authenticatedUserId = authData.user.id;
-        } else if (authError) {
-          authErrorMessage = authError.message;
+        const apiData = await res.json().catch(() => ({}));
+        if (res.ok && apiData.user?.id) {
+          authenticatedUserId = apiData.user.id;
+          await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password
+          }).catch(() => {});
+        } else if (apiData.error) {
+          authErrorMessage = apiData.error;
         }
       } catch (e: any) {
-        authErrorMessage = e?.message || 'Supabase Auth client error';
+        console.warn('API Account creation error:', e);
       }
 
-      // 2. Fallback to API route if direct signUp didn't return user.id
+      // 2. Direct Supabase auth.signUp as fallback
       if (!authenticatedUserId) {
         try {
-          const res = await fetch('/api/account', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: cleanEmail, password, fullName: cleanName, phone: cleanPhone, role })
+          const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: cleanEmail,
+            password,
+            options: {
+              data: { name: cleanName, phone: cleanPhone, role }
+            }
           });
-          const apiData = await res.json().catch(() => ({}));
-          if (res.ok && apiData.user?.id) {
-            authenticatedUserId = apiData.user.id;
-            await supabase.auth.signInWithPassword({
-              email: cleanEmail,
-              password
-            }).catch(() => {});
-          } else if (apiData.error) {
-            authErrorMessage = apiData.error;
+
+          if (authData?.user?.id) {
+            authenticatedUserId = authData.user.id;
+          } else if (authError) {
+            authErrorMessage = authError.message;
           }
         } catch (e: any) {
-          console.warn('API Account creation error:', e);
+          authErrorMessage = e?.message || 'Supabase Auth client error';
         }
       }
     }
