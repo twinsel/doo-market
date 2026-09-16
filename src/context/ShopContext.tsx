@@ -267,10 +267,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Sync current user to Supabase DB
   useEffect(() => {
-    if (currentUser && !currentUser.id?.startsWith('guest-')) {
+    if (currentUser && !currentUser.id?.startsWith('guest-') && !isLoggingOut) {
       syncUserToSupabase(currentUser).catch(() => {});
     }
-  }, [currentUser]);
+  }, [currentUser, isLoggingOut]);
 
   // Cart reservation cleanup
   useEffect(() => {
@@ -737,8 +737,13 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUserOnlineStatus(currentUser.id, false);
       syncUserToSupabase({ ...currentUser, isOnline: false });
     }
+    supabase.auth.signOut().catch(() => {});
     refreshShopState();
     setTimeout(() => {
+      try {
+        localStorage.removeItem(STORAGE_USER);
+        sessionStorage.clear();
+      } catch {}
       setCurrentUser(null);
       setIsLoggingOut(false);
     }, (data.settings.logoutDuration || 3) * 1000);

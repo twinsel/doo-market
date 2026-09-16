@@ -525,8 +525,8 @@ export const AdminUsersPage: React.FC = () => {
           (o.customer?.phone && u.phone && o.customer.phone === u.phone)
         );
 
-        // Real-time presence online status based strictly on active database session
-        const userIsOnline = isSelf ? true : (u.isOnline === true || u.is_online === true);
+        // Real-time presence online status based strictly on active database record
+        const userIsOnline = (u.isOnline === true || u.is_online === true);
 
         combined.push({
           id: u.id || 'usr-' + Math.random(),
