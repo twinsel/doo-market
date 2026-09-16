@@ -752,8 +752,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deleteUser = useCallback((userIdentifier: string) => {
     if (!userIdentifier) return;
 
-    deleteUserFromSupabase(userIdentifier);
-
     const targetUser = registeredUsers.find(u =>
       u.id === userIdentifier || u.email === userIdentifier || u.phone === userIdentifier
     ) || (currentUser && (currentUser.id === userIdentifier || currentUser.email === userIdentifier) ? currentUser : null);
@@ -762,11 +760,22 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const userPhone = targetUser?.phone;
     const userEmail = targetUser?.email;
 
+    deleteUserFromSupabase(userIdentifier, userEmail);
+
     setRegisteredUsers(prev => prev.filter(u =>
       u.id !== userIdentifier &&
       (!userEmail || u.email !== userEmail) &&
       (!userPhone || u.phone !== userPhone)
     ));
+
+    // If the deleted user is the current active user in session, purge it immediately
+    if (currentUser && (currentUser.id === userIdentifier || (userEmail && currentUser.email?.toLowerCase() === userEmail.toLowerCase()))) {
+      try {
+        localStorage.removeItem(STORAGE_USER);
+        sessionStorage.clear();
+      } catch {}
+      setCurrentUser(null);
+    }
 
     setData(prev => ({
       ...prev,
@@ -779,7 +788,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     clearCart();
     setWishlist([]);
-    setCurrentUser(null);
 
     try {
       localStorage.removeItem(STORAGE_USER);
