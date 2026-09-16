@@ -53,7 +53,7 @@ interface ShopContextType {
   addReview: (productId: string, rating: number, comment: string, userName?: string) => void;
   login: (user: Partial<User>) => void;
   logout: () => void;
-  deleteUser: (identifier: string) => void;
+  deleteUser: (identifier: string, userEmailOpt?: string) => void;
   clearAllUsers: () => void;
   updateSettings: (settings: Partial<StoreSettings>) => void;
   addProduct: (product: Omit<Product, 'id'>) => void;
@@ -238,6 +238,15 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return JSON.parse(saved);
       }
       return [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [deletedUserKeys, setDeletedUserKeys] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('doo_deleted_users_v6');
+      return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
@@ -749,27 +758,39 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, (data.settings.logoutDuration || 3) * 1000);
   }, [data.settings.logoutMessage, data.settings.logoutDuration, currentUser, refreshShopState]);
 
-  const deleteUser = useCallback((userIdentifier: string) => {
-    if (!userIdentifier) return;
+  const deleteUser = useCallback((userIdentifier: string, userEmailOpt?: string) => {
+    if (!userIdentifier && !userEmailOpt) return;
 
+    const cleanId = (userIdentifier || '').trim();
     const targetUser = registeredUsers.find(u =>
-      u.id === userIdentifier || u.email === userIdentifier || u.phone === userIdentifier
-    ) || (currentUser && (currentUser.id === userIdentifier || currentUser.email === userIdentifier) ? currentUser : null);
+      u.id === cleanId || u.email === userIdentifier || u.email === userEmailOpt
+    ) || (currentUser && (currentUser.id === cleanId || currentUser.email === userIdentifier || currentUser.email === userEmailOpt) ? currentUser : null);
 
     const userName = targetUser?.name;
     const userPhone = targetUser?.phone;
-    const userEmail = targetUser?.email;
+    const userEmail = (userEmailOpt || targetUser?.email || (cleanId.includes('@') ? cleanId : '')).trim().toLowerCase();
 
-    deleteUserFromSupabase(userIdentifier, userEmail);
+    // 1. Permanent Blacklist
+    setDeletedUserKeys(prev => {
+      const next = [...prev];
+      if (cleanId && !next.includes(cleanId)) next.push(cleanId);
+      if (userEmail && !next.includes(userEmail)) next.push(userEmail);
+      try {
+        localStorage.setItem('doo_deleted_users_v6', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
 
+    // 2. Delete from Supabase
+    deleteUserFromSupabase(cleanId, userEmail);
+
+    // 3. Filter registeredUsers
     setRegisteredUsers(prev => prev.filter(u =>
-      u.id !== userIdentifier &&
-      (!userEmail || u.email !== userEmail) &&
-      (!userPhone || u.phone !== userPhone)
+      u.id !== cleanId && (!userEmail || u.email?.toLowerCase() !== userEmail)
     ));
 
-    // If the deleted user is the current active user in session, purge it immediately
-    if (currentUser && (currentUser.id === userIdentifier || (userEmail && currentUser.email?.toLowerCase() === userEmail.toLowerCase()))) {
+    // 4. Purge active currentUser
+    if (currentUser && (currentUser.id === cleanId || (userEmail && currentUser.email?.toLowerCase() === userEmail))) {
       try {
         localStorage.removeItem(STORAGE_USER);
         sessionStorage.clear();

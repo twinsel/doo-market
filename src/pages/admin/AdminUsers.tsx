@@ -532,6 +532,15 @@ export const AdminUsersPage: React.FC = () => {
     const combined: any[] = [];
     const addedKeys = new Set<string>();
 
+    const deletedKeysSaved = (() => {
+      try {
+        const saved = localStorage.getItem('doo_deleted_users_v6');
+        return saved ? (JSON.parse(saved) as string[]) : [];
+      } catch {
+        return [];
+      }
+    })();
+
     // Single source of truth: remoteDbUsers if loaded, else registeredUsers
     const baseList = remoteDbUsers.length > 0 ? remoteDbUsers : (registeredUsers || []);
     const listToProcess = [...baseList];
@@ -541,8 +550,19 @@ export const AdminUsersPage: React.FC = () => {
 
     listToProcess.forEach((uItem: any) => {
       const u = uItem || {};
+      const uId = u.id || '';
+      const uEmail = (u.email || '').toLowerCase();
+
+      // Blacklist filter: Permanently skip deleted users
+      if (
+        (uId && deletedKeysSaved.includes(uId)) ||
+        (uEmail && deletedKeysSaved.includes(uEmail))
+      ) {
+        return;
+      }
+
       // Skip anonymous guest users from admin users management
-      if (u.id?.startsWith('guest-') || u.name === 'زائر المتجر' || u.role === 'guest') {
+      if (uId.startsWith('guest-') || u.name === 'زائر المتجر' || u.role === 'guest') {
         return;
       }
 
@@ -604,15 +624,16 @@ export const AdminUsersPage: React.FC = () => {
     // 1. Instantly filter and remove card from React UI State (0.01s instant update)
     setRemoteDbUsers(prev => prev.filter(u =>
       u.id !== targetId &&
-      (!targetEmail || u.email !== targetEmail)
+      (!targetEmail || u.email?.toLowerCase() !== targetEmail?.toLowerCase())
     ));
 
-    // 2. Delete from ShopContext
-    deleteUser(targetId || targetEmail);
+    // 2. Delete and blacklist via ShopContext
+    deleteUser(targetId, targetEmail);
 
     setUserToDelete(null);
+    if (selectedUser?.id === targetId) setSelectedUser(null);
 
-    // 3. Delete online from Supabase DB in background
+    // 3. Delete from Supabase DB in background
     await deleteUserFromSupabase(targetId, targetEmail);
   };
 
