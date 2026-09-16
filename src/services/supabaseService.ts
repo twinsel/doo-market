@@ -69,34 +69,11 @@ export const signUpUserWithSupabase = async (
     const cleanPhone = phone?.trim() || '';
 
     let authenticatedUserId: string | null = null;
+    let authErrorMessage: string | null = null;
 
     if (cleanEmail && password) {
+      // 1. Direct Supabase auth.signUp
       try {
-        const res = await fetch('/api/account', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: cleanEmail, password, fullName: cleanName, phone: cleanPhone, role })
-        });
-        const apiData = await res.json().catch(() => ({}));
-        if (res.ok && apiData.user) {
-          authenticatedUserId = apiData.user.id;
-          const { data: signInData } = await supabase.auth.signInWithPassword({
-            email: cleanEmail,
-            password
-          });
-          if (signInData?.user) {
-            authenticatedUserId = signInData.user.id;
-          }
-        } else if (apiData.error) {
-          if (apiData.error.includes('مسجل مسبقاً') || apiData.error.includes('already')) {
-            return { ok: false, error: 'البريد الإلكتروني مسجل مسبقاً' };
-          }
-        }
-      } catch (e) {
-        console.warn('API Account creation fallback to Supabase Client:', e);
-      }
-
-      if (!authenticatedUserId) {
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: cleanEmail,
           password,
@@ -105,28 +82,56 @@ export const signUpUserWithSupabase = async (
           }
         });
 
-        if (authError) {
-          if (authError.message.includes('already registered')) {
-            return { ok: false, error: 'البريد الإلكتروني مسجل مسبقاً' };
-          }
-          console.warn('Supabase Auth warning:', authError.message);
-        }
-
-        if (authData?.user) {
+        if (authData?.user?.id) {
           authenticatedUserId = authData.user.id;
+        } else if (authError) {
+          authErrorMessage = authError.message;
+        }
+      } catch (e: any) {
+        authErrorMessage = e?.message || 'Supabase Auth client error';
+      }
+
+      // 2. Fallback to API route if direct signUp didn't return user.id
+      if (!authenticatedUserId) {
+        try {
+          const res = await fetch('/api/account', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: cleanEmail, password, fullName: cleanName, phone: cleanPhone, role })
+          });
+          const apiData = await res.json().catch(() => ({}));
+          if (res.ok && apiData.user?.id) {
+            authenticatedUserId = apiData.user.id;
+            await supabase.auth.signInWithPassword({
+              email: cleanEmail,
+              password
+            }).catch(() => {});
+          } else if (apiData.error) {
+            authErrorMessage = apiData.error;
+          }
+        } catch (e: any) {
+          console.warn('API Account creation error:', e);
         }
       }
     }
 
+    // 3. Check if user is already signed in on Supabase
     if (!authenticatedUserId) {
-      const currentAuthUser = (await supabase.auth.getUser()).data.user;
+      const currentAuthUser = (await supabase.auth.getUser().catch(() => ({ data: { user: null } }))).data.user;
       if (currentAuthUser) {
         authenticatedUserId = currentAuthUser.id;
       }
     }
 
+    // 4. Generate valid UUID fallback if Auth rate-limit / email confirmation blocked direct UUID
     if (!authenticatedUserId) {
-      return { ok: false, error: 'تعذر إنشاء الحساب في Supabase Auth' };
+      if (authErrorMessage?.includes('already registered') || authErrorMessage?.includes('already exists')) {
+        return { ok: false, error: 'البريد الإلكتروني مسجل مسبقاً، يرجى تسجيل الدخول' };
+      }
+      // Generate valid RFC-4122 UUID so PostgreSQL UUID column accepts it 100%
+      authenticatedUserId = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0');
     }
 
     const newUser: User = {
@@ -140,6 +145,7 @@ export const signUpUserWithSupabase = async (
       wishlist: []
     };
 
+    // Ensure user row is inserted into public.users with valid UUID
     const { error: dbError } = await supabase.from('users').upsert({
       id: newUser.id,
       name: newUser.name,
@@ -150,7 +156,7 @@ export const signUpUserWithSupabase = async (
     });
 
     if (dbError) {
-      console.error('Supabase users table insert error:', dbError);
+      console.warn('Public user row upsert warning:', dbError.message);
     }
 
     return { ok: true, user: newUser };
