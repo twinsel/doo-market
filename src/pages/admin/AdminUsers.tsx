@@ -26,7 +26,7 @@ import {
 import { useShop } from '../../context/ShopContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { fetchUsersFromSupabase, deleteUserFromSupabase } from '../../services/supabaseService';
+import { fetchUsersFromSupabase, deleteUserFromSupabase, syncUserToSupabase } from '../../services/supabaseService';
 import { supabase } from '../../lib/supabase';
 
 // ============================================================
@@ -471,6 +471,9 @@ export const AdminUsersPage: React.FC = () => {
   useEffect(() => {
     const loadDbUsers = async () => {
       try {
+        if (currentUser && currentUser.email) {
+          await syncUserToSupabase({ ...currentUser, isOnline: true }).catch(() => {});
+        }
         const fetched = await fetchUsersFromSupabase();
         if (fetched && fetched.length > 0) {
           setRemoteDbUsers(fetched);

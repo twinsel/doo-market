@@ -282,28 +282,54 @@ export const setUserOnlineStatus = async (userId: string, isOnline: boolean, use
 
 export const syncUserToSupabase = async (user: User & { isOnline?: boolean }) => {
   try {
-    if (!user || user.id?.startsWith('guest-')) return;
+    if (!user || !user.email || user.id?.startsWith('guest-')) return;
 
-    let targetId = user.id;
-    if (!targetId || targetId.startsWith('usr-') || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetId)) {
-      targetId = typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0');
+    const cleanEmail = user.email.trim().toLowerCase();
+    const cleanName = user.name?.trim() || cleanEmail.split('@')[0];
+    const cleanPhone = user.phone?.trim() || '';
+    const cleanRole = user.role || 'buyer';
+
+    // 1. Ensure user is created in Supabase auth.users & public.users via serverless API
+    try {
+      await fetch('/api/account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cleanEmail,
+          password: 'DooUser@2026!',
+          fullName: cleanName,
+          phone: cleanPhone,
+          role: cleanRole
+        })
+      });
+    } catch (e) {
+      console.warn('API Account sync warning:', e);
     }
 
-    const { error } = await supabase.from('users').upsert({
-      id: targetId,
-      name: user.name,
-      email: user.email || '',
-      phone: user.phone || '',
-      role: user.role || 'buyer',
-      joined_at: user.joinedAt || 'اليوم',
-      avatar: user.avatar || null,
-      is_online: user.isOnline ?? true,
-      last_login_at: new Date().toISOString()
-    });
+    // 2. Resolve valid UUID ID from Supabase public.users if needed
+    let targetId = user.id;
+    if (!targetId || targetId.startsWith('usr-') || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetId)) {
+      const { data: profile } = await supabase.from('users').select('id').ilike('email', cleanEmail).maybeSingle();
+      if (profile?.id) {
+        targetId = profile.id;
+      }
+    }
 
-    if (error) console.error('Supabase user sync error:', error.message);
+    if (targetId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetId)) {
+      try {
+        await supabase.from('users').upsert({
+          id: targetId,
+          name: cleanName,
+          email: cleanEmail,
+          phone: cleanPhone,
+          role: cleanRole,
+          joined_at: user.joinedAt || 'اليوم',
+          avatar: user.avatar || null,
+          is_online: user.isOnline ?? true,
+          last_login_at: new Date().toISOString()
+        });
+      } catch {}
+    }
   } catch (e) {
     console.error('Failed to sync user to Supabase:', e);
   }
