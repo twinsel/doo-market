@@ -120,27 +120,42 @@ export default async function handler(req, res) {
       const { targetUserId, targetEmail } = req.body || {};
       const user = await getUserFromReq(req);
 
-      const deleteId = targetUserId || user?.id;
-      const deleteEmail = targetEmail || user?.email;
+      const deleteId = String(targetUserId || user?.id || '').trim();
+      const deleteEmail = String(targetEmail || user?.email || '').trim().toLowerCase();
 
       if (!deleteId && !deleteEmail) {
         return res.status(400).json({ error: 'لم يتم تحديد المستخدم للحذف' });
       }
 
-      if (deleteId) {
-        await supabase.from('users').delete().eq('id', deleteId).catch(() => {});
-        await supabase.from('user_roles').delete().eq('user_id', deleteId).catch(() => {});
-        await supabase.from('carts').delete().eq('user_id', deleteId).catch(() => {});
-        await supabase.from('wishlists').delete().eq('user_id', deleteId).catch(() => {});
-
-        // Delete from auth.users permanently via Admin Service Role Key
-        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deleteId)) {
-          await supabase.auth.admin.deleteUser(deleteId).catch(() => {});
-        }
+      // 1. Delete by Email using RPC and direct tables
+      if (deleteEmail) {
+        await supabase.rpc('delete_user_completely', { p_email: deleteEmail }).catch(() => {});
+        await supabase.from('users').delete().ilike('email', deleteEmail).catch(() => {});
       }
 
+      // 2. Delete by ID using RPC and direct tables
+      if (deleteId) {
+        await supabase.rpc('delete_user_completely', { p_email: deleteId }).catch(() => {});
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deleteId)) {
+          await supabase.rpc('admin_delete_user', { target_user_id: deleteId }).catch(() => {});
+          await supabase.auth.admin.deleteUser(deleteId).catch(() => {});
+        }
+        await supabase.from('users').delete().eq('id', deleteId).catch(() => {});
+        await supabase.from('user_roles').delete().eq('user_id', deleteId).catch(() => {});
+      }
+
+      // 3. Find and delete permanently from auth.users via Admin API
       if (deleteEmail) {
-        await supabase.from('users').delete().ilike('email', deleteEmail).catch(() => {});
+        try {
+          const { data: listData } = await supabase.auth.admin.listUsers();
+          const found = listData?.users?.find(u => u.email?.toLowerCase() === deleteEmail);
+          if (found?.id) {
+            await supabase.auth.admin.deleteUser(found.id).catch(() => {});
+            await supabase.from('users').delete().eq('id', found.id).catch(() => {});
+          }
+        } catch (e) {
+          console.warn('Auth admin listUsers deletion warning:', e);
+        }
       }
 
       return res.status(200).json({ ok: true });
