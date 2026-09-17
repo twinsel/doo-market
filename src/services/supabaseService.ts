@@ -333,17 +333,24 @@ export const fetchUsersFromSupabase = async (): Promise<User[] | null> => {
   }
 };
 
-export const deleteOwnAccount = async (): Promise<void> => {
-  let userEmail = '';
-  let userId = '';
+export const deleteOwnAccount = async (explicitUserId?: string, explicitUserEmail?: string): Promise<void> => {
+  let userId = (explicitUserId || '').trim();
+  let userEmail = (explicitUserEmail || '').trim().toLowerCase();
 
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      userId = user.id;
-      userEmail = user.email || '';
-    }
-  } catch {}
+  if (!userId || !userEmail) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        userId = userId || user.id;
+        userEmail = userEmail || (user.email || '').toLowerCase();
+      }
+    } catch {}
+  }
+
+  // Turn online status to false in Supabase DB immediately
+  if (userId || userEmail) {
+    await setUserOnlineStatus(userId, false, userEmail).catch(() => {});
+  }
 
   // 1. Master Serverless API delete via Service Role Key
   try {

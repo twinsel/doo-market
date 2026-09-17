@@ -243,14 +243,11 @@ export const ProfilePage: React.FC = () => {
     const targetEmail = currentUser.email;
 
     try {
-      // 1. Delete own account via RPC & API
-      await deleteOwnAccount().catch(() => {});
+      // 1. Set offline status & Delete own account via RPC & API
+      await deleteOwnAccount(targetId, targetEmail).catch(() => {});
 
       // 2. Delete user data from Supabase DB tables
-      await deleteUserFromSupabase(targetId).catch(() => {});
-      if (targetEmail) {
-        await deleteUserFromSupabase(targetEmail).catch(() => {});
-      }
+      await deleteUserFromSupabase(targetId, targetEmail).catch(() => {});
 
       // 3. Clear user from ShopContext
       deleteUser(targetId);
