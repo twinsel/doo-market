@@ -1,0 +1,25 @@
+================================================================================
+Doo Market - Complete Supabase Configuration, Database Backup & Environment Keys
+================================================================================
+
+1. SUPABASE PROJECT ENVIRONMENT VARIABLES
+--------------------------------------------------------------------------------
+VITE_SUPABASE_URL = https://cuhopbhqtoxccoflogyy.supabase.co
+VITE_SUPABASE_ANON_KEY = sb_publishable_G9PbwL7JJffxKToCSSnQ-w_G3cYLQMT
+
+2. FULL DATABASE RESTORATION SCRIPT
+--------------------------------------------------------------------------------
+- Full SQL Restoration File: DATABASE_BACKUP_FULL.sql (in root of this backup folder)
+- Contains 11 Core Tables: users, user_roles, login_attempts, store_settings, categories, products, orders, carts, wishlists, reviews, notifications.
+- Contains Triggers: handle_new_user() for automatic auth.users -> public.users sync.
+- Contains RPC Functions: delete_own_account(), admin_delete_user(), delete_user_completely(), is_admin().
+- Contains RLS Policies: Strict row level security for all tables.
+- Contains Seed Data: Store settings & initial categories.
+
+3. HOW TO RESTORE THIS BACKUP IN SUPABASE
+--------------------------------------------------------------------------------
+1. Open your Supabase Dashboard -> SQL Editor.
+2. Open DATABASE_BACKUP_FULL.sql from this backup folder.
+3. Paste the entire SQL contents into the SQL Editor and click [Run].
+4. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env / Vercel Environment Variables.
+5. Your application database and authentication system will be 100% restored!
