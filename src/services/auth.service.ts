@@ -2,7 +2,7 @@
 
 import { supabase } from '../lib/supabase';
 import { User, UserRole } from '../types';
-import { RegisterFormData } from '../schemas/auth.schema';
+import { RegisterFormData, cleanString } from '../schemas/auth.schema';
 import { RateLimitService } from './rate-limit.service';
 import { ENV } from '../config/env';
 import { AUTH_MESSAGES } from '../constants/auth-messages';
@@ -15,7 +15,10 @@ export class AuthService {
   /**
    * ✅ تسجيل الدخول - آمن حسب معايير OWASP
    */
-  static async login(email: string, password: string): Promise<User> {
+  static async login(emailInput: string, passwordInput: string): Promise<User> {
+    const email = cleanString(emailInput).toLowerCase();
+    const password = cleanString(passwordInput);
+
     const rateLimit = await RateLimitService.checkAttempts(email);
     if (!rateLimit.allowed) {
       const minutes = Math.ceil(
@@ -71,17 +74,30 @@ export class AuthService {
   /**
    * ✅ إنشاء حساب جديد - معالجة محايدة وآمنة حسب معايير OWASP
    */
-  static async register(data: RegisterFormData): Promise<User> {
+  static async register(dataInput: RegisterFormData): Promise<User> {
     await this.addRandomDelay();
+
+    const cleanName = cleanString(dataInput.name);
+    const cleanEmail = cleanString(dataInput.email).toLowerCase();
+    const cleanPhone = cleanString(dataInput.phone || '');
+    const cleanPassword = cleanString(dataInput.password);
+
+    const data: RegisterFormData = {
+      ...dataInput,
+      name: cleanName,
+      email: cleanEmail,
+      phone: cleanPhone,
+      password: cleanPassword,
+    };
 
     try {
       const { data: authData, error } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
+        email: cleanEmail,
+        password: cleanPassword,
         options: {
           data: {
-            name: data.name,
-            phone: data.phone || '',
+            name: cleanName,
+            phone: cleanPhone,
           },
         },
       });

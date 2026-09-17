@@ -2,6 +2,8 @@ import supabase from './db-client.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const cleanString = (val) => String(val || '').replace(/[\uFEFF\u200B-\u200D\uFFFE\uFFFF]/g, '').trim();
+
 async function getUserFromReq(req) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) return null;
@@ -20,9 +22,10 @@ export default async function handler(req, res) {
     // ─── 1. إنشاء حساب جديد ─────────────────────────────────────────
     if (req.method === 'POST') {
       const { email, password, fullName, phone, role } = req.body || {};
-      const cleanEmail = String(email || '').trim().toLowerCase();
-      const cleanName = String(fullName || '').trim() || cleanEmail.split('@')[0];
-      const cleanPhone = String(phone || '').trim();
+      const cleanEmail = cleanString(email).toLowerCase();
+      const cleanName = cleanString(fullName) || cleanEmail.split('@')[0];
+      const cleanPhone = cleanString(phone);
+      const cleanPassword = cleanString(password);
 
       if (!EMAIL_RE.test(cleanEmail)) {
         return res.status(400).json({ error: 'البريد الإلكتروني غير صحيح' });

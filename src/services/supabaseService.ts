@@ -56,6 +56,11 @@ export const fetchOrdersFromSupabase = async (): Promise<Order[] | null> => {
 // Sync & Authenticate Users in Supabase
 // ============================================================
 
+const cleanString = (value?: string): string => {
+  if (typeof value !== 'string') return '';
+  return value.replace(/[\uFEFF\u200B-\u200D\uFFFE\uFFFF]/g, '').trim();
+};
+
 export const signUpUserWithSupabase = async (
   email: string,
   password?: string,
@@ -64,14 +69,15 @@ export const signUpUserWithSupabase = async (
   role: 'buyer' | 'admin' = 'buyer'
 ): Promise<{ ok: boolean; user?: User; error?: string }> => {
   try {
-    const cleanEmail = (email || '').trim().toLowerCase();
-    const cleanName = (name || '').trim() || cleanEmail.split('@')[0] || 'مستخدم';
-    const cleanPhone = (phone || '').trim();
+    const cleanEmail = cleanString(email).toLowerCase();
+    const cleanName = cleanString(name) || cleanEmail.split('@')[0] || 'مستخدم';
+    const cleanPhone = cleanString(phone);
+    const cleanPassword = cleanString(password);
 
     let authenticatedUserId: string | null = null;
     let authErrorMessage: string | null = null;
 
-    if (cleanEmail && password) {
+    if (cleanEmail && cleanPassword) {
       // 1. Try serverless API route (/api/account) first using Service Role Key
       try {
         const res = await fetch('/api/account', {
@@ -81,7 +87,7 @@ export const signUpUserWithSupabase = async (
           },
           body: JSON.stringify({
             email: cleanEmail,
-            password: String(password),
+            password: cleanPassword,
             fullName: cleanName,
             phone: cleanPhone,
             role
