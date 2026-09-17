@@ -123,15 +123,12 @@ export const signUpUserWithSupabase = async (
       }
     }
 
-    // 4. Generate valid UUID fallback if Auth rate-limit / email confirmation blocked direct UUID
+    // Strict Check: Require real Supabase creation or return exact error
     if (!authenticatedUserId) {
-      if (authErrorMessage?.includes('already registered') || authErrorMessage?.includes('already exists')) {
-        return { ok: false, error: 'البريد الإلكتروني مسجل مسبقاً، يرجى تسجيل الدخول' };
-      }
-      // Generate valid RFC-4122 UUID so PostgreSQL UUID column accepts it 100%
-      authenticatedUserId = typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0');
+      return {
+        ok: false,
+        error: authErrorMessage || 'تعذر إنشاء الحساب في Supabase، يرجى التثبت من إدخال البيانات بشكل صحيح'
+      };
     }
 
     const newUser: User = {
