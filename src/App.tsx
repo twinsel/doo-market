@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { ShopProvider } from './context/ShopContext';
 import { Header } from './components/Header';
@@ -15,25 +15,27 @@ import { CartPage } from './pages/CartPage';
 import { WishlistPage } from './pages/WishlistPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SearchPage } from './pages/SearchPage';
-import { TrackOrderPage } from './pages/TrackOrderPage';
-import { CheckoutPage } from './pages/CheckoutPage';
 import { AuthPage } from './pages/AuthPage';
-import { ResetPasswordPage } from './pages/ResetPasswordPage';
-import { AddReviewPage } from './pages/AddReviewPage';
 import { AuthProvider } from './context/AuthContext';
 
-// Admin Sub-pages (Stage 2)
-import { AdminLayout } from './pages/admin/AdminLayout';
-import { AdminDashboardOverview } from './pages/admin/AdminDashboard';
-import { AdminOrdersPage } from './pages/admin/AdminOrders';
-import { AdminProductsPage } from './pages/admin/AdminProducts';
-import { AdminCategoriesPage } from './pages/admin/AdminCategories';
-import { AdminBannersPage } from './pages/admin/AdminBanners';
-import { AdminFlashDealsPage } from './pages/admin/AdminFlashDeals';
-import { AdminCollectionsPage } from './pages/admin/AdminCollections';
-import { AdminSectionsPage } from './pages/admin/AdminSections';
-import { AdminUsersPage } from './pages/admin/AdminUsers';
-import { AdminSettingsPage } from './pages/admin/AdminSettings';
+// Lazy Loaded Secondary Store Routes
+const TrackOrderPage = lazy(() => import('./pages/TrackOrderPage').then(m => ({ default: m.TrackOrderPage })));
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage').then(m => ({ default: m.CheckoutPage })));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage })));
+const AddReviewPage = lazy(() => import('./pages/AddReviewPage').then(m => ({ default: m.AddReviewPage })));
+
+// Lazy Loaded Admin Management Routes
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout').then(m => ({ default: m.AdminLayout })));
+const AdminDashboardOverview = lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboardOverview })));
+const AdminOrdersPage = lazy(() => import('./pages/admin/AdminOrders').then(m => ({ default: m.AdminOrdersPage })));
+const AdminProductsPage = lazy(() => import('./pages/admin/AdminProducts').then(m => ({ default: m.AdminProductsPage })));
+const AdminCategoriesPage = lazy(() => import('./pages/admin/AdminCategories').then(m => ({ default: m.AdminCategoriesPage })));
+const AdminBannersPage = lazy(() => import('./pages/admin/AdminBanners').then(m => ({ default: m.AdminBannersPage })));
+const AdminFlashDealsPage = lazy(() => import('./pages/admin/AdminFlashDeals').then(m => ({ default: m.AdminFlashDealsPage })));
+const AdminCollectionsPage = lazy(() => import('./pages/admin/AdminCollections').then(m => ({ default: m.AdminCollectionsPage })));
+const AdminSectionsPage = lazy(() => import('./pages/admin/AdminSections').then(m => ({ default: m.AdminSectionsPage })));
+const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsers').then(m => ({ default: m.AdminUsersPage })));
+const AdminSettingsPage = lazy(() => import('./pages/admin/AdminSettings').then(m => ({ default: m.AdminSettingsPage })));
 
 import { AppAuthGate } from './components/AppAuthGate';
 import { useShop } from './context/ShopContext';
