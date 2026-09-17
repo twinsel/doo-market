@@ -116,12 +116,13 @@ export default async function handler(req, res) {
     }
 
     // ─── 3. حذف الحساب نهائياً ─────────────────────────────────────────
-    if (req.method === 'DELETE') {
-      const { targetUserId, targetEmail } = req.body || {};
+    if (req.method === 'DELETE' || (req.method === 'POST' && req.body?.action === 'delete')) {
+      const body = req.body || {};
+      const query = req.query || {};
       const user = await getUserFromReq(req);
 
-      const deleteId = String(targetUserId || user?.id || '').trim();
-      const deleteEmail = String(targetEmail || user?.email || '').trim().toLowerCase();
+      const deleteId = String(query.targetUserId || query.userId || query.id || body.targetUserId || body.userId || body.id || user?.id || '').trim();
+      const deleteEmail = String(query.targetEmail || query.email || body.targetEmail || body.email || user?.email || '').trim().toLowerCase();
 
       if (!deleteId && !deleteEmail) {
         return res.status(400).json({ error: 'لم يتم تحديد المستخدم للحذف' });
@@ -144,7 +145,7 @@ export default async function handler(req, res) {
         await supabase.from('user_roles').delete().eq('user_id', deleteId).catch(() => {});
       }
 
-      // 3. Find and delete permanently from auth.users via Admin API
+      // 3. Find and delete permanently from auth.users via Admin API by email
       if (deleteEmail) {
         try {
           const { data: listData } = await supabase.auth.admin.listUsers();

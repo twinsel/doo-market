@@ -354,10 +354,11 @@ export const deleteOwnAccount = async (explicitUserId?: string, explicitUserEmai
 
   // 1. Master Serverless API delete via Service Role Key
   try {
-    await fetch('/api/account', {
+    const deleteApiUrl = `/api/account?targetUserId=${encodeURIComponent(userId)}&targetEmail=${encodeURIComponent(userEmail)}`;
+    await fetch(deleteApiUrl, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targetUserId: userId, targetEmail: userEmail })
+      body: JSON.stringify({ targetUserId: userId, targetEmail: userEmail, action: 'delete' })
     });
   } catch (e) {
     console.warn('API delete account error:', e);
@@ -391,10 +392,11 @@ export const deleteUserFromSupabase = async (identifier: string, userEmail?: str
 
     // 1. Master Serverless API delete via Service Role Key (Bypasses RLS completely)
     try {
-      await fetch('/api/account', {
+      const deleteApiUrl = `/api/account?targetUserId=${encodeURIComponent(cleanId)}&targetEmail=${encodeURIComponent(cleanEmail)}`;
+      await fetch(deleteApiUrl, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetUserId: cleanId, targetEmail: cleanEmail })
+        body: JSON.stringify({ targetUserId: cleanId, targetEmail: cleanEmail, action: 'delete' })
       });
     } catch (e) {
       console.warn('Serverless API delete warning:', e);
