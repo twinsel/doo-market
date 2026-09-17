@@ -739,14 +739,19 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshShopState();
   }, [refreshShopState]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     setIsLoggingOut(true);
     setLogoutMsg(data.settings.logoutMessage || 'جاري تسجيل الخروج... نتمنى أن تكون قد استمتعت بتجربة شراء فريدة');
     if (currentUser) {
-      setUserOnlineStatus(currentUser.id, false, currentUser.email);
-      syncUserToSupabase({ ...currentUser, isOnline: false });
+      await setUserOnlineStatus(currentUser.id, false, currentUser.email);
+      await syncUserToSupabase({ ...currentUser, isOnline: false }).catch(() => {});
+      setRegisteredUsers(prev => prev.map(u => (
+        (u.id === currentUser.id || (u.email && u.email.toLowerCase() === currentUser.email?.toLowerCase()))
+          ? { ...u, isOnline: false }
+          : u
+      )));
     }
-    supabase.auth.signOut().catch(() => {});
+    await supabase.auth.signOut().catch(() => {});
     try {
       localStorage.removeItem(STORAGE_USER);
       sessionStorage.clear();

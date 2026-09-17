@@ -252,6 +252,19 @@ export const setUserOnlineStatus = async (userId: string, isOnline: boolean, use
     if (!userId && !userEmail) return;
     const cleanEmail = userEmail?.trim().toLowerCase();
 
+    // 1. Broadcast instant real-time presence status event (~50ms across all clients)
+    try {
+      const channel = supabase.channel('presence_status_channel');
+      await channel.send({
+        type: 'broadcast',
+        event: 'presence_changed',
+        payload: { userId, email: cleanEmail, isOnline }
+      });
+    } catch (e) {
+      console.warn('Presence broadcast warning:', e);
+    }
+
+    // 2. Update DB status before session ends
     if (cleanEmail) {
       await supabase.from('users').update({
         is_online: isOnline,
@@ -262,18 +275,6 @@ export const setUserOnlineStatus = async (userId: string, isOnline: boolean, use
         is_online: isOnline,
         last_login_at: new Date().toISOString()
       }).eq('id', userId);
-    }
-
-    // Broadcast instant real-time presence status event
-    try {
-      const channel = supabase.channel('presence_status_channel');
-      await channel.send({
-        type: 'broadcast',
-        event: 'presence_changed',
-        payload: { userId, email: cleanEmail, isOnline }
-      });
-    } catch (e) {
-      console.warn('Presence broadcast warning:', e);
     }
   } catch (e) {
     console.warn('Failed to update user online status:', e);

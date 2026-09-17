@@ -48,28 +48,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load User from Supabase Auth as Single Source of Truth
+  // Load User strictly from Supabase Auth Session
   useEffect(() => {
     const loadUser = async () => {
       setIsLoading(true);
       try {
         const currentUser = await AuthService.getCurrentUser();
-        setUser(currentUser);
         if (currentUser) {
+          setUser(currentUser);
           setIsAdmin(currentUser.role === 'admin');
           try {
             localStorage.setItem('doo_user_cache', JSON.stringify(currentUser));
           } catch {}
+        } else {
+          setUser(null);
+          setIsAdmin(false);
+          try {
+            localStorage.removeItem('doo_user_cache');
+          } catch {}
         }
       } catch (e) {
-        console.error('Failed to load user:', e);
+        console.error('Failed to load user from Supabase session:', e);
+        setUser(null);
+        setIsAdmin(false);
         try {
-          const cached = localStorage.getItem('doo_user_cache');
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            setUser(parsed);
-            setIsAdmin(parsed.role === 'admin');
-          }
+          localStorage.removeItem('doo_user_cache');
         } catch {}
       } finally {
         setIsLoading(false);
@@ -78,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     loadUser();
 
-    // Listen to Supabase Auth State Changes
+    // Listen strictly to Supabase Auth State Changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
@@ -94,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } catch (e) {
             console.error('Auth sign in error:', e);
           }
-        } else if (event === 'SIGNED_OUT') {
+        } else if (event === 'SIGNED_OUT' || !session) {
           setUser(null);
           setIsAdmin(false);
           try {
@@ -213,9 +216,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           localStorage.setItem('doo_user_cache', JSON.stringify(currentUser));
         } catch {}
+      } else {
+        setUser(null);
+        setIsAdmin(false);
+        try {
+          localStorage.removeItem('doo_user_cache');
+        } catch {}
       }
     } catch (error) {
       console.error('Failed to refresh user:', error);
+      setUser(null);
+      setIsAdmin(false);
     } finally {
       setIsLoading(false);
     }

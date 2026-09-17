@@ -6,6 +6,7 @@ import { RegisterFormData, cleanString } from '../schemas/auth.schema';
 import { RateLimitService } from './rate-limit.service';
 import { ENV } from '../config/env';
 import { AUTH_MESSAGES } from '../constants/auth-messages';
+import { setUserOnlineStatus } from './supabaseService';
 
 // ============================================================
 // 1. خدمة المصادقة - AuthService (Strict Security OWASP 10/10)
@@ -42,6 +43,9 @@ export class AuthService {
       }
 
       await RateLimitService.resetAttempts(email);
+
+      // Set online status in DB & broadcast realtime presence
+      await setUserOnlineStatus(data.user.id, true, email);
 
       const [profile, role] = await Promise.all([
         this.getUserProfile(data.user.id),
@@ -103,10 +107,13 @@ export class AuthService {
       });
 
       if (error) {
-        if (error.message.includes('already registered')) {
-          throw new Error(AUTH_MESSAGES.register.emailSent);
+        if (error.message.toLowerCase().includes('already registered') || error.message.toLowerCase().includes('already exists')) {
+          throw new Error(AUTH_MESSAGES.register.emailExists);
         }
-        throw new Error(AUTH_MESSAGES.register.generalError);
+        if (error.message.toLowerCase().includes('password')) {
+          throw new Error('كلمة المرور يجب أن تكون 8 أحرف على الأقل وتتضمن حرفاً كبيراً ورقماً');
+        }
+        throw new Error(error.message || AUTH_MESSAGES.register.generalError);
       }
 
       if (!authData.user) {
@@ -129,7 +136,7 @@ export class AuthService {
       return newUser;
 
     } catch (error) {
-      if (error instanceof Error && error.message.includes('تم إرسال رابط')) {
+      if (error instanceof Error) {
         throw error;
       }
       throw new Error(AUTH_MESSAGES.register.generalError);
@@ -169,9 +176,18 @@ export class AuthService {
   }
 
   /**
-   * ✅ تسجيل الخروج
+   * ✅ تسجيل الخروج - تحويل حالة المستخدم إلى أوفلاين أولاً قبل إنهاء الجلسة
    */
   static async logout(): Promise<void> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await setUserOnlineStatus(user.id, false, user.email);
+      }
+    } catch (e) {
+      console.warn('Set offline status warning:', e);
+    }
+
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.warn('Logout warning:', error.message);

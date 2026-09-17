@@ -22,11 +22,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShop } from '../context/ShopContext';
-import {
-  signUpUserWithSupabase,
-  signInUserWithSupabase,
-  sendPasswordResetEmail
-} from '../services/supabaseService';
+import { AuthService } from '../services/auth.service';
 
 export const AuthPage: React.FC = () => {
   const navigate = useNavigate();
@@ -88,14 +84,13 @@ export const AuthPage: React.FC = () => {
     setLoginError('');
     setIsLoading(true);
 
-    const result = await signInUserWithSupabase(loginEmail, loginPassword);
-
-    if (result.ok && result.user) {
-      login(result.user);
+    try {
+      const user = await AuthService.login(loginEmail, loginPassword);
+      login(user);
       setIsLoading(false);
       navigate('/');
-    } else {
-      setLoginError(result.error || 'كلمة المرور أو البريد الإلكتروني غير صحيح');
+    } catch (err: any) {
+      setLoginError(err.message || 'كلمة المرور أو البريد الإلكتروني غير صحيح');
       setIsLoading(false);
     }
   };
@@ -109,8 +104,8 @@ export const AuthPage: React.FC = () => {
       return;
     }
 
-    if (regPassword.length < 6) {
-      setRegError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+    if (regPassword.length < 8) {
+      setRegError('كلمة المرور يجب أن تكون 8 أحرف على الأقل وتتضمن حرفاً كبيراً ورقماً');
       return;
     }
 
@@ -121,26 +116,25 @@ export const AuthPage: React.FC = () => {
 
     setIsLoading(true);
 
-    const isAdmin = regEmail.toLowerCase().includes('admin') ||
-                    regEmail.toLowerCase().includes('مدير');
+    try {
+      const user = await AuthService.register({
+        name: regName,
+        email: regEmail,
+        phone: regPhone,
+        password: regPassword,
+        confirmPassword: regConfirmPassword,
+        acceptTerms: agreedTerms,
+        receiveUpdates: false,
+      });
 
-    const result = await signUpUserWithSupabase(
-      regEmail,
-      regPassword,
-      regName,
-      regPhone,
-      isAdmin ? 'admin' : 'buyer'
-    );
-
-    if (result.ok && result.user) {
-      login(result.user);
+      login(user);
       setIsLoading(false);
       setShowSuccess(true);
       setTimeout(() => {
         navigate('/');
       }, 1200);
-    } else {
-      setRegError(result.error || 'تعذر إنشاء الحساب، يرجى المحاولة لاحقاً');
+    } catch (err: any) {
+      setRegError(err.message || 'تعذر إنشاء الحساب، يرجى المحاولة لاحقاً');
       setIsLoading(false);
     }
   };
@@ -151,9 +145,14 @@ export const AuthPage: React.FC = () => {
     setIsResetLoading(true);
     setResetMessage('');
 
-    const res = await sendPasswordResetEmail(resetEmail.trim());
-    setIsResetLoading(false);
-    setResetMessage(res.message);
+    try {
+      await AuthService.resetPassword(resetEmail.trim());
+      setResetMessage('تم إرسال تعليمات إعادة تعيين كلمة المرور إلى بريدك الإلكتروني بنجاح ✨');
+    } catch (err: any) {
+      setResetMessage(err.message || 'تعذر إرسال البريد، يرجى التحقق من العنوان والربط.');
+    } finally {
+      setIsResetLoading(false);
+    }
   };
 
   const handleGuestEntry = async () => {
