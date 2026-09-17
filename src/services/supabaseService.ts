@@ -64,9 +64,9 @@ export const signUpUserWithSupabase = async (
   role: 'buyer' | 'admin' = 'buyer'
 ): Promise<{ ok: boolean; user?: User; error?: string }> => {
   try {
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanName = name?.trim() || cleanEmail.split('@')[0] || 'مستخدم';
-    const cleanPhone = phone?.trim() || '';
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanName = (name || '').trim() || cleanEmail.split('@')[0] || 'مستخدم';
+    const cleanPhone = (phone || '').trim();
 
     let authenticatedUserId: string | null = null;
     let authErrorMessage: string | null = null;
@@ -77,34 +77,37 @@ export const signUpUserWithSupabase = async (
         const res = await fetch('/api/account', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Accept': 'application/json'
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ email: cleanEmail, password: String(password), fullName: cleanName, phone: cleanPhone, role })
+          body: JSON.stringify({
+            email: cleanEmail,
+            password: String(password),
+            fullName: cleanName,
+            phone: cleanPhone,
+            role
+          })
         });
+
         const apiData = await res.json().catch(() => ({}));
         if (res.ok && apiData.user?.id) {
           authenticatedUserId = apiData.user.id;
           await supabase.auth.signInWithPassword({
             email: cleanEmail,
-            password
+            password: String(password)
           }).catch(() => {});
         } else if (apiData.error) {
           authErrorMessage = apiData.error;
         }
       } catch (e: any) {
-        console.warn('API Account creation error:', e);
+        authErrorMessage = e?.message || 'فشل الاتصال بمركز الخدمة';
       }
 
       // 2. Direct Supabase auth.signUp as fallback
-      if (!authenticatedUserId) {
+      if (!authenticatedUserId && !authErrorMessage) {
         try {
           const { data: authData, error: authError } = await supabase.auth.signUp({
             email: cleanEmail,
-            password,
-            options: {
-              data: { name: cleanName, phone: cleanPhone, role }
-            }
+            password: String(password)
           });
 
           if (authData?.user?.id) {
@@ -118,15 +121,6 @@ export const signUpUserWithSupabase = async (
       }
     }
 
-    // 3. Check if user is already signed in on Supabase
-    if (!authenticatedUserId) {
-      const currentAuthUser = (await supabase.auth.getUser().catch(() => ({ data: { user: null } }))).data.user;
-      if (currentAuthUser) {
-        authenticatedUserId = currentAuthUser.id;
-      }
-    }
-
-    // Strict Check: Require real Supabase creation or return exact error
     if (!authenticatedUserId) {
       return {
         ok: false,
