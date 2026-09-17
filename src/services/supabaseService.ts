@@ -76,8 +76,11 @@ export const signUpUserWithSupabase = async (
       try {
         const res = await fetch('/api/account', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: cleanEmail, password, fullName: cleanName, phone: cleanPhone, role })
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ email: cleanEmail, password: String(password), fullName: cleanName, phone: cleanPhone, role })
         });
         const apiData = await res.json().catch(() => ({}));
         if (res.ok && apiData.user?.id) {
@@ -290,7 +293,10 @@ export const syncUserToSupabase = async (user: User & { isOnline?: boolean }) =>
     try {
       await fetch('/api/account', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({
           email: cleanEmail,
           password: 'DooUser@2026!',
