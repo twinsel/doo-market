@@ -513,10 +513,41 @@ export const AdminUsersPage: React.FC = () => {
       })
       .subscribe();
 
-    // 3. Fast 3-second Background Status Poller (Guarantees zero manual refresh needed)
+    // 3. Instant Realtime User Deletion Broadcast Channel
+    const deletionChannel = supabase
+      .channel('realtime_user_deletion_channel')
+      .on('broadcast', { event: 'user_deleted' }, async (payload: any) => {
+        const deletedId = (payload?.payload?.userId || '').trim();
+        const deletedEmail = (payload?.payload?.email || '').trim().toLowerCase();
+
+        // Filter and remove deleted user card from React UI immediately (~50ms)
+        setRemoteDbUsers(prev => prev.filter(u =>
+          u.id !== deletedId &&
+          (!deletedEmail || u.email?.toLowerCase() !== deletedEmail)
+        ));
+
+        // Save to permanent blacklist so card can never reappear
+        if (deletedId || deletedEmail) {
+          try {
+            const saved = localStorage.getItem('doo_deleted_users_v6');
+            const list: string[] = saved ? JSON.parse(saved) : [];
+            if (deletedId && !list.includes(deletedId)) list.push(deletedId);
+            if (deletedEmail && !list.includes(deletedEmail)) list.push(deletedEmail);
+            localStorage.setItem('doo_deleted_users_v6', JSON.stringify(list));
+          } catch {}
+        }
+
+        const fetched = await fetchUsersFromSupabase().catch(() => null);
+        if (fetched) {
+          setRemoteDbUsers(fetched);
+        }
+      })
+      .subscribe();
+
+    // 4. Fast 3-second Background Status Poller (Guarantees zero manual refresh needed)
     const interval = setInterval(async () => {
       const fetched = await fetchUsersFromSupabase().catch(() => null);
-      if (fetched && fetched.length > 0) {
+      if (fetched) {
         setRemoteDbUsers(fetched);
       }
     }, 3000);
@@ -524,6 +555,7 @@ export const AdminUsersPage: React.FC = () => {
     return () => {
       supabase.removeChannel(presenceChannel);
       supabase.removeChannel(dbChannel);
+      supabase.removeChannel(deletionChannel);
       clearInterval(interval);
     };
   }, []);
