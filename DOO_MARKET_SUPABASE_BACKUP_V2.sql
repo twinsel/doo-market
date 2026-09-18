@@ -1,12 +1,28 @@
--- ============================================================
--- Doo Market - Strict Production Database Schema & Strict RLS Policies
--- Supabase PostgreSQL Specification v3.0 (Strict Security & Isolation)
--- ============================================================
+-- ================================================================================
+-- Doo Market - Master Supabase Database Backup V2 (Full Restoration Script)
+-- النسخة الاحتياطية المحدثة والشاملة لمتجر دُو ماركت - الإصدار الثاني V2
+-- تاريخ الإنشاء: 18 سبتمبر 2026
+-- ================================================================================
+--
+-- 📖 تعليمات الاستعادة (How to Restore):
+-- 1. افتح لوحة تحكم Supabase لمشروعك الجديد أو الحالي (https://supabase.com/dashboard).
+-- 2. اذهب إلى قائمة [SQL Editor] من الشريط الجانبي.
+-- 3. اضغط على [New query].
+-- 4. انسخ محتوى هذا الملف كاملاً من السطر الأول حتى السطر الأخير والصقه في المحرر.
+-- 5. اضغط على زر [Run] أو (Ctrl + Enter).
+-- 6. سيعاد إنشاء الجداول الـ 11، الفهارس، السياسات الأمنية RLS، التريجرات التلقائية والبيانات الأساسية بنجاح!
+--
+-- ================================================================================
 
--- 1. Enable UUID Extension
+-- 1. Enable Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- 2. Create Public Users Table
+-- ================================================================================
+-- 2. CREATE TABLES (إنشاء الجداول الموحدة الـ 11)
+-- ================================================================================
+
+-- 2.1 Public Users Table
 CREATE TABLE IF NOT EXISTS public.users (
   id UUID NOT NULL,
   name TEXT NOT NULL,
@@ -36,12 +52,11 @@ CREATE TABLE IF NOT EXISTS public.users (
   )
 ) TABLESPACE pg_default;
 
--- Create Indexes on Public Users
 CREATE INDEX IF NOT EXISTS idx_users_email ON public.users USING btree (email);
 CREATE INDEX IF NOT EXISTS idx_users_phone ON public.users USING btree (phone);
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON public.users USING btree (created_at DESC);
 
--- 3. Create User Roles Table
+-- 2.2 User Roles Table
 CREATE TABLE IF NOT EXISTS public.user_roles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE NOT NULL,
@@ -50,7 +65,7 @@ CREATE TABLE IF NOT EXISTS public.user_roles (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 4. Create Login Attempts Table (OWASP Brute Force Protection)
+-- 2.3 Login Attempts Table (OWASP Protection)
 CREATE TABLE IF NOT EXISTS public.login_attempts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   identifier TEXT NOT NULL UNIQUE,
@@ -62,7 +77,7 @@ CREATE TABLE IF NOT EXISTS public.login_attempts (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 5. Create Store Settings Table
+-- 2.4 Store Settings Table
 CREATE TABLE IF NOT EXISTS public.store_settings (
   id TEXT PRIMARY KEY DEFAULT 'main',
   site_name TEXT DEFAULT 'دُو ماركت',
@@ -89,7 +104,7 @@ CREATE TABLE IF NOT EXISTS public.store_settings (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 6. Create Categories Table
+-- 2.5 Categories Table
 CREATE TABLE IF NOT EXISTS public.categories (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -100,7 +115,7 @@ CREATE TABLE IF NOT EXISTS public.categories (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 7. Create Products Table
+-- 2.6 Products Table
 CREATE TABLE IF NOT EXISTS public.products (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -127,7 +142,7 @@ CREATE TABLE IF NOT EXISTS public.products (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 8. Create Orders Table
+-- 2.7 Orders Table
 CREATE TABLE IF NOT EXISTS public.orders (
   id TEXT PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -144,21 +159,21 @@ CREATE TABLE IF NOT EXISTS public.orders (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 9. Create Carts Table
+-- 2.8 Carts Table
 CREATE TABLE IF NOT EXISTS public.carts (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   items JSONB NOT NULL DEFAULT '[]'::jsonb,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 10. Create Wishlists Table
+-- 2.9 Wishlists Table
 CREATE TABLE IF NOT EXISTS public.wishlists (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   items JSONB NOT NULL DEFAULT '[]'::jsonb,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 11. Create Reviews Table
+-- 2.10 Reviews Table
 CREATE TABLE IF NOT EXISTS public.reviews (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id TEXT NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
@@ -169,7 +184,7 @@ CREATE TABLE IF NOT EXISTS public.reviews (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 12. Create Notifications Table
+-- 2.11 Notifications Table
 CREATE TABLE IF NOT EXISTS public.notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -180,9 +195,31 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- ============================================================
--- 13. Enable Realtime Publication
--- ============================================================
+-- ================================================================================
+-- 3. INITIAL SEED DATA (بيانات المتجر والتصنيفات الأولية)
+-- ================================================================================
+
+-- Store Settings
+INSERT INTO public.store_settings (id, site_name, brand_mark, site_tagline, currency, currency_symbol, primary_color, phone, email, whatsapp, free_shipping_min, announcement)
+VALUES ('main', 'دُو ماركت', 'دُو', 'تسوق بذكاء · أسعار ولا أروع', 'SAR', 'ر.س', '#FF6A00', '920000000', 'support@doomarket.com', '963954475933', 99, '🔥 عروض البرق · خصم حتى 80% · شحن مجاني فوق 99 ر.س')
+ON CONFLICT (id) DO NOTHING;
+
+-- Initial Categories
+INSERT INTO public.categories (id, name, name_en, icon, image, active) VALUES
+('cat-fashion', 'أزياء', 'Fashion', 'Shirt', '/images/product-1.jpg', true),
+('cat-electronics', 'إلكترونيات', 'Electronics', 'Smartphone', '/images/product-2.jpg', true),
+('cat-beauty', 'جمال وعناية', 'Beauty', 'Sparkles', '/images/product-4.jpg', true),
+('cat-home', 'المنزل', 'Home', 'Home', '/images/product-5.jpg', true),
+('cat-shoes', 'أحذية', 'Shoes', 'Footprints', '/images/product-6.jpg', true),
+('cat-bags', 'حقائب', 'Bags', 'ShoppingBag', '/images/product-7.jpg', true),
+('cat-kitchen', 'مطبخ', 'Kitchen', 'CookingPot', '/images/product-8.jpg', true),
+('cat-watches', 'ساعات', 'Watches', 'Watch', '/images/product-3.jpg', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- ================================================================================
+-- 4. REALTIME PUBLICATION SETUP
+-- ================================================================================
+
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'users') THEN
@@ -202,9 +239,10 @@ BEGIN
   END IF;
 END $$;
 
--- ============================================================
--- 14. Secure Triggers (Strict 'buyer' Role Enforcement on Signup)
--- ============================================================
+-- ================================================================================
+-- 5. SECURE DATABASE TRIGGERS
+-- ================================================================================
+
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -238,9 +276,10 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
 
--- ============================================================
--- 15. Helper Check Admin Function
--- ============================================================
+-- ================================================================================
+-- 6. HELPER FUNCTIONS & SECURE RPCs
+-- ================================================================================
+
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN AS $$
 BEGIN
@@ -251,11 +290,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ============================================================
--- 16. Secure RPC Functions with Admin Role Checks
--- ============================================================
-
--- Delete own account (Authenticated user operating ONLY on auth.uid())
 CREATE OR REPLACE FUNCTION public.delete_own_account()
 RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
@@ -275,7 +309,6 @@ BEGIN
 END;
 $$;
 
--- Admin delete user by target_user_id (Strict Admin Role Required)
 CREATE OR REPLACE FUNCTION public.admin_delete_user(target_user_id UUID)
 RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
@@ -292,7 +325,6 @@ BEGIN
 END;
 $$;
 
--- Complete user deletion by email or ID (Strict Admin Role Required)
 CREATE OR REPLACE FUNCTION public.delete_user_completely(p_email TEXT)
 RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
@@ -317,9 +349,10 @@ BEGIN
 END;
 $$;
 
--- ============================================================
--- 17. Enable Row Level Security (RLS) & Strict Policies
--- ============================================================
+-- ================================================================================
+-- 7. ROW LEVEL SECURITY (RLS) POLICIES
+-- ================================================================================
+
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.login_attempts ENABLE ROW LEVEL SECURITY;
@@ -332,52 +365,42 @@ ALTER TABLE public.wishlists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
--- Reset existing policies
+-- Reset policies
 DROP POLICY IF EXISTS "Public read users" ON public.users;
-DROP POLICY IF EXISTS "Public insert users" ON public.users;
-DROP POLICY IF EXISTS "Public update users" ON public.users;
-DROP POLICY IF EXISTS "Public delete users" ON public.users;
-DROP POLICY IF EXISTS "Allow public select users" ON public.users;
-DROP POLICY IF EXISTS "Allow user signup" ON public.users;
-DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
-DROP POLICY IF EXISTS "Users or Admins can delete own profile" ON public.users;
+DROP POLICY IF EXISTS "Users update own profile or admin updates all" ON public.users;
+DROP POLICY IF EXISTS "Users delete own profile or admin deletes all" ON public.users;
+DROP POLICY IF EXISTS "Users insert own profile" ON public.users;
 
--- User Policies (Public read for profile cards, Users/Admins update own profile)
-DROP POLICY IF EXISTS "Users read own profile or admin reads all" ON public.users;
+-- User Policies
 CREATE POLICY "Public read users" ON public.users FOR SELECT USING (true);
 CREATE POLICY "Users update own profile or admin updates all" ON public.users FOR UPDATE USING (id = auth.uid() OR public.is_admin());
 CREATE POLICY "Users delete own profile or admin deletes all" ON public.users FOR DELETE USING (id = auth.uid() OR public.is_admin());
 CREATE POLICY "Users insert own profile" ON public.users FOR INSERT WITH CHECK (id = auth.uid());
 
--- Strict User Roles Policies (Users read own role ONLY, Admins read/manage all)
-DROP POLICY IF EXISTS "Public read user_roles" ON public.user_roles;
-DROP POLICY IF EXISTS "Public insert user_roles" ON public.user_roles;
-DROP POLICY IF EXISTS "Public update user_roles" ON public.user_roles;
-DROP POLICY IF EXISTS "Users can read own role" ON public.user_roles;
-DROP POLICY IF EXISTS "Allow user role signup" ON public.user_roles;
-DROP POLICY IF EXISTS "Admins can manage all roles" ON public.user_roles;
+-- Roles Policies
+DROP POLICY IF EXISTS "Users read own role" ON public.user_roles;
+DROP POLICY IF EXISTS "Admins manage user roles" ON public.user_roles;
 
 CREATE POLICY "Users read own role" ON public.user_roles FOR SELECT USING (user_id = auth.uid() OR public.is_admin());
 CREATE POLICY "Admins manage user roles" ON public.user_roles FOR ALL USING (public.is_admin());
 
 -- Store Settings Policies
-DROP POLICY IF EXISTS "Public read store settings" ON public.store_settings;
-DROP POLICY IF EXISTS "Public manage store_settings" ON public.store_settings;
-DROP POLICY IF EXISTS "Admins manage store settings" ON public.store_settings;
+DROP POLICY IF EXISTS "Public read store_settings" ON public.store_settings;
+DROP POLICY IF EXISTS "Admins manage store_settings" ON public.store_settings;
 
 CREATE POLICY "Public read store_settings" ON public.store_settings FOR SELECT USING (true);
 CREATE POLICY "Admins manage store_settings" ON public.store_settings FOR ALL USING (public.is_admin());
 
 -- Categories Policies
 DROP POLICY IF EXISTS "Public read categories" ON public.categories;
-DROP POLICY IF EXISTS "Public manage categories" ON public.categories;
+DROP POLICY IF EXISTS "Admins manage categories" ON public.categories;
 
 CREATE POLICY "Public read categories" ON public.categories FOR SELECT USING (true);
 CREATE POLICY "Admins manage categories" ON public.categories FOR ALL USING (public.is_admin());
 
 -- Products Policies
 DROP POLICY IF EXISTS "Public read products" ON public.products;
-DROP POLICY IF EXISTS "Public manage products" ON public.products;
+DROP POLICY IF EXISTS "Admins manage products" ON public.products;
 
 CREATE POLICY "Public read products" ON public.products FOR SELECT USING (true);
 CREATE POLICY "Admins manage products" ON public.products FOR ALL USING (public.is_admin());
@@ -397,34 +420,26 @@ CREATE POLICY "Public insert orders" ON public.orders FOR INSERT WITH CHECK (tru
 CREATE POLICY "Public update orders" ON public.orders FOR UPDATE USING (true) WITH CHECK (true);
 CREATE POLICY "Public delete orders" ON public.orders FOR DELETE USING (true);
 
--- Carts Policies (Users manage own cart)
-DROP POLICY IF EXISTS "Public read carts" ON public.carts;
-DROP POLICY IF EXISTS "Public manage carts" ON public.carts;
+-- Carts & Wishlists
+DROP POLICY IF EXISTS "Users manage own cart" ON public.carts;
+DROP POLICY IF EXISTS "Users manage own wishlist" ON public.wishlists;
 
 CREATE POLICY "Users manage own cart" ON public.carts FOR ALL USING (user_id = auth.uid());
-
--- Wishlists Policies (Users manage own wishlist)
-DROP POLICY IF EXISTS "Public read wishlists" ON public.wishlists;
-DROP POLICY IF EXISTS "Public manage wishlists" ON public.wishlists;
-
 CREATE POLICY "Users manage own wishlist" ON public.wishlists FOR ALL USING (user_id = auth.uid());
 
--- Reviews Policies (Public read, authenticated insert)
+-- Reviews & Notifications
 DROP POLICY IF EXISTS "Public read reviews" ON public.reviews;
-DROP POLICY IF EXISTS "Public insert reviews" ON public.reviews;
+DROP POLICY IF EXISTS "Users insert reviews" ON public.reviews;
+DROP POLICY IF EXISTS "Users manage own notifications" ON public.notifications;
 
 CREATE POLICY "Public read reviews" ON public.reviews FOR SELECT USING (true);
 CREATE POLICY "Users insert reviews" ON public.reviews FOR INSERT WITH CHECK (user_id = auth.uid());
-
--- Notifications Policies (Users manage own notifications)
-DROP POLICY IF EXISTS "Public read notifications" ON public.notifications;
-DROP POLICY IF EXISTS "Public manage notifications" ON public.notifications;
-
 CREATE POLICY "Users manage own notifications" ON public.notifications FOR ALL USING (user_id = auth.uid());
 
--- ============================================================
--- 18. Strict Permissions on RPC Functions
--- ============================================================
+-- ================================================================================
+-- 8. STRICT RPC PERMISSIONS
+-- ================================================================================
+
 REVOKE ALL ON public.login_attempts FROM anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.admin_delete_user(UUID) FROM anon, authenticated, public;
 REVOKE EXECUTE ON FUNCTION public.delete_user_completely(TEXT) FROM anon, authenticated, public;
@@ -432,3 +447,7 @@ REVOKE EXECUTE ON FUNCTION public.delete_user_completely(TEXT) FROM anon, authen
 GRANT EXECUTE ON FUNCTION public.delete_own_account() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_delete_user(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.delete_user_completely(TEXT) TO authenticated;
+
+-- ================================================================================
+-- END OF MASTER BACKUP SCRIPT V2
+-- ================================================================================
