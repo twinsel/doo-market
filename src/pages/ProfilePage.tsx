@@ -246,7 +246,7 @@ export const ProfilePage: React.FC = () => {
     const targetEmail = currentUser.email;
 
     try {
-      const result = await deleteOwnAccount();
+      const result = await deleteOwnAccount(targetId);
 
       if (!result.ok) {
         alert(result.error || 'فشل حذف الحساب، يرجى المحاولة لاحقًا');

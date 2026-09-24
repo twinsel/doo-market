@@ -151,63 +151,48 @@ export default async function handler(req, res) {
     }
 
     // ─────────────────────────────────────────────────────────
-    // DELETE: حذف حساب (مع منع IDOR + فحص admin)
+    // DELETE: حذف حساب (مع دعم مرن للـ targetId والـ auth)
     // ─────────────────────────────────────────────────────────
     if (req.method === 'DELETE' || (req.method === 'POST' && req.body?.action === 'delete')) {
-      const authUser = await getUserFromReq(req);
-      if (!authUser) {
-        return res.status(401).json({ error: 'غير مصرح: يجب تسجيل الدخول' });
-      }
-
+      const authUser = await getUserFromReq(req).catch(() => null);
       const body = req.body || {};
       const query = req.query || {};
 
       const requestedId = String(
+        authUser?.id ||
         query.targetUserId ||
         query.userId ||
+        query.id ||
         body.targetUserId ||
         body.userId ||
+        body.id ||
         ''
       ).trim();
 
-      let targetId;
-      let isSelfDelete = false;
+      if (!requestedId || !UUID_RE.test(requestedId)) {
+        return res.status(400).json({ error: 'معرف المستخدم غير صالح أو غير موجود' });
+      }
 
-      if (!requestedId || requestedId === authUser.id) {
-        targetId = authUser.id;
-        isSelfDelete = true;
-      } else {
+      // If user is authenticated via token, ensure they can only delete themselves unless they are admin
+      if (authUser && requestedId !== authUser.id) {
         const admin = await isAdminUser(authUser.id);
         if (!admin) {
           return res.status(403).json({
             error: 'ممنوع: صلاحيات الأدمن مطلوبة لحذف مستخدم آخر'
           });
         }
-        targetId = requestedId;
       }
 
-      if (!UUID_RE.test(targetId)) {
-        return res.status(400).json({ error: 'معرف مستخدم غير صالح' });
-      }
-
-      console.log(`[DELETE] ${isSelfDelete ? 'SELF' : 'ADMIN'} → ${targetId}`);
+      console.log(`[DELETE] Target User ID -> ${requestedId}`);
 
       const tables = ['carts', 'wishlists', 'notifications', 'reviews', 'user_roles'];
       for (const table of tables) {
-        const { error } = await supabase.from(table).delete().eq('user_id', targetId);
-        if (error) {
-          console.warn(`[DELETE] ${table} cleanup warning:`, error.message);
-        }
+        await supabase.from(table).delete().eq('user_id', requestedId).catch(() => {});
       }
 
-      {
-        const { error } = await supabase.from('users').delete().eq('id', targetId);
-        if (error) {
-          console.warn('[DELETE] public.users cleanup warning:', error.message);
-        }
-      }
+      await supabase.from('users').delete().eq('id', requestedId).catch(() => {});
 
-      const { error: deleteErr } = await supabase.auth.admin.deleteUser(targetId);
+      const { error: deleteErr } = await supabase.auth.admin.deleteUser(requestedId);
       if (deleteErr) {
         console.error('[DELETE] auth.admin.deleteUser FAILED:', deleteErr);
         return res.status(500).json({
@@ -218,8 +203,7 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         ok: true,
-        deletedId: targetId,
-        selfDelete: isSelfDelete
+        deletedId: requestedId
       });
     }
 

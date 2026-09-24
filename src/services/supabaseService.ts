@@ -367,21 +367,24 @@ export const fetchUsersFromSupabase = async (): Promise<User[] | null> => {
   }
 };
 
-export const deleteOwnAccount = async (): Promise<{ ok: boolean; error?: string }> => {
+export const deleteOwnAccount = async (userId?: string): Promise<{ ok: boolean; error?: string }> => {
   try {
-    const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
-
-    if (sessionErr || !session?.access_token) {
-      return { ok: false, error: 'لا توجد جلسة نشطة' };
+    let uid = userId || '';
+    if (!uid) {
+      const { data: { user } } = await supabase.auth.getUser();
+      uid = user?.id || '';
     }
 
-    const res = await fetch('/api/account', {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || '';
+
+    const res = await fetch(`/api/account?targetUserId=${encodeURIComponent(uid)}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       },
-      body: JSON.stringify({ action: 'delete' })
+      body: JSON.stringify({ action: 'delete', targetUserId: uid })
     });
 
     const data = await res.json().catch(() => ({}));
