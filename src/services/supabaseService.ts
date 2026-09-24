@@ -381,12 +381,7 @@ export const deleteOwnAccount = async (explicitUserId?: string, explicitUserEmai
     } catch {}
   }
 
-  // Turn online status to false in Supabase DB immediately
-  if (userId || userEmail) {
-    await setUserOnlineStatus(userId, false, userEmail).catch(() => {});
-  }
-
-  // 1. Master Serverless API delete via Service Role Key
+  // Single Serverless API delete call via Service Role Key (Atomic & Fast)
   try {
     const deleteApiUrl = `/api/account?targetUserId=${encodeURIComponent(userId)}&targetEmail=${encodeURIComponent(userEmail)}`;
     await fetch(deleteApiUrl, {
@@ -398,13 +393,7 @@ export const deleteOwnAccount = async (explicitUserId?: string, explicitUserEmai
     console.warn('API delete account error:', e);
   }
 
-  // 2. RPC cleanup
-  try { await supabase.rpc('delete_own_account'); } catch {}
-  if (userEmail) {
-    try { await supabase.rpc('delete_user_completely', { p_email: userEmail.toLowerCase() }); } catch {}
-  }
-
-  // 3. Broadcast Realtime deletion event to instantly remove user card from Admin Dashboard
+  // Broadcast Realtime deletion event
   try {
     const channel = supabase.channel('realtime_user_deletion_channel');
     await channel.send({
@@ -414,7 +403,7 @@ export const deleteOwnAccount = async (explicitUserId?: string, explicitUserEmai
     });
   } catch {}
 
-  // 4. Sign out
+  // Sign out
   await supabase.auth.signOut().catch(() => {});
 };
 

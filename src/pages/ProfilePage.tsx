@@ -246,34 +246,22 @@ export const ProfilePage: React.FC = () => {
     const targetEmail = currentUser.email;
 
     try {
-      // 1. Direct RPC calls to Supabase delete_own_account and delete_user_completely
-      if (targetEmail) {
-        try { await supabase.rpc('delete_user_completely', { p_email: targetEmail.toLowerCase() }); } catch {}
-      }
-      try { await supabase.rpc('delete_own_account'); } catch {}
-
-      // 2. Delete own account via master API and broadcast
-      await deleteOwnAccount(targetId, targetEmail).catch(() => {});
-
-      // 3. Delete user data from Supabase DB tables
-      await deleteUserFromSupabase(targetId, targetEmail).catch(() => {});
-
-      // 4. Clear user from ShopContext
-      deleteUser(targetId, targetEmail);
-
-      // 5. Wipe localStorage and sessionStorage completely
+      // 1. Wipe localStorage and sessionStorage immediately for instant feedback
       try {
         localStorage.clear();
         sessionStorage.clear();
       } catch {}
 
-      // 6. Sign out from Supabase Auth session
-      await supabase.auth.signOut().catch(() => {});
+      // 2. Clear user from ShopContext
+      deleteUser(targetId, targetEmail);
+
+      // 3. Single atomic delete call via Serverless API & Sign out
+      await deleteOwnAccount(targetId, targetEmail).catch(() => {});
 
       setIsDeleting(false);
       setIsDeleteModalOpen(false);
 
-      // 7. Force redirect to register tab cleanly
+      // 4. Force redirect instantly
       window.location.href = `${window.location.origin}/#/auth?tab=register`;
     } catch (e) {
       console.error('Delete account fallback:', e);
