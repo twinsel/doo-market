@@ -283,10 +283,11 @@ CREATE TRIGGER on_auth_user_created
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN AS $$
 BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM public.user_roles
-    WHERE user_id = auth.uid() AND role = 'admin'
-  );
+  RETURN COALESCE((current_setting('request.jwt.claims', true)::jsonb->>'role'), '') = 'service_role'
+    OR EXISTS (
+      SELECT 1 FROM public.user_roles
+      WHERE user_id = auth.uid() AND role = 'admin'
+    );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
