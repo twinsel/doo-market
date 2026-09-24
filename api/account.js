@@ -113,60 +113,34 @@ export default async function handler(req, res) {
       return res.status(200).json(created);
     }
 
-    // ─── 3. حذف الحساب نهائياً (باستخدام Service Role Key حصرياً) ──────
+    // ─── 3. حذف الحساب نهائياً ─────────────────────────────────────────
     if (req.method === 'DELETE' || (req.method === 'POST' && req.body?.action === 'delete')) {
       const body = req.body || {};
       const query = req.query || {};
       const authUser = await getUserFromReq(req).catch(() => null);
 
-      const targetUserId = String(query.targetUserId || query.userId || query.id || body.targetUserId || body.userId || body.id || authUser?.id || '').trim();
-      const targetEmail = String(query.targetEmail || query.email || body.targetEmail || body.email || authUser?.email || '').trim().toLowerCase();
+      const targetId = String(query.targetUserId || query.userId || query.id || body.targetUserId || body.userId || body.id || authUser?.id || '').trim();
 
-      if (!targetUserId && !targetEmail) {
+      if (!targetId) {
         return res.status(400).json({ error: 'لم يتم تحديد المستخدم للحذف' });
       }
 
-      console.log('Admin Serverless API Deleting User:', { targetUserId, targetEmail });
+      console.log('Admin Deleting User ID:', targetId);
 
-      let userIdToDelete = targetUserId;
+      // Delete from public tables
+      await supabase.from('users').delete().eq('id', targetId).catch(() => {});
+      await supabase.from('user_roles').delete().eq('user_id', targetId).catch(() => {});
+      await supabase.from('carts').delete().eq('user_id', targetId).catch(() => {});
+      await supabase.from('wishlists').delete().eq('user_id', targetId).catch(() => {});
+      await supabase.from('notifications').delete().eq('user_id', targetId).catch(() => {});
+      await supabase.from('reviews').delete().eq('user_id', targetId).catch(() => {});
 
-      if (!userIdToDelete && targetEmail) {
-        const { data: listData } = await supabase.auth.admin.listUsers();
-        const found = listData?.users?.find(u => u.email?.toLowerCase() === targetEmail);
-        if (found?.id) {
-          userIdToDelete = found.id;
-        }
+      // Delete from auth.users permanently via Admin API (Service Role)
+      const { error: deleteErr } = await supabase.auth.admin.deleteUser(targetId);
+      if (deleteErr) {
+        console.warn('Admin deleteUser warning:', deleteErr.message);
       }
 
-      if (userIdToDelete) {
-        // Delete from all public tables
-        await supabase.from('carts').delete().eq('user_id', userIdToDelete).catch(() => {});
-        await supabase.from('wishlists').delete().eq('user_id', userIdToDelete).catch(() => {});
-        await supabase.from('notifications').delete().eq('user_id', userIdToDelete).catch(() => {});
-        await supabase.from('reviews').delete().eq('user_id', userIdToDelete).catch(() => {});
-        await supabase.from('user_roles').delete().eq('user_id', userIdToDelete).catch(() => {});
-        await supabase.from('users').delete().eq('id', userIdToDelete).catch(() => {});
-
-        // Delete from Supabase Auth (auth.users) using Admin API (Service Role)
-        const { error: delError } = await supabase.auth.admin.deleteUser(userIdToDelete);
-        if (delError) {
-          console.error('Supabase admin deleteUser error:', delError);
-          return res.status(400).json({ error: delError.message });
-        }
-      }
-
-      if (targetEmail) {
-        await supabase.from('users').delete().ilike('email', targetEmail).catch(() => {});
-        try {
-          const { data: listData } = await supabase.auth.admin.listUsers();
-          const found = listData?.users?.find(u => u.email?.toLowerCase() === targetEmail);
-          if (found?.id && found.id !== userIdToDelete) {
-            await supabase.auth.admin.deleteUser(found.id).catch(() => {});
-          }
-        } catch {}
-      }
-
-      console.log('User successfully and permanently deleted from Supabase Auth and Database.');
       return res.status(200).json({ ok: true });
     }
 

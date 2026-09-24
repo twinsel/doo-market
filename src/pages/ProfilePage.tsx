@@ -247,7 +247,7 @@ export const ProfilePage: React.FC = () => {
 
     try {
       // 1. Call deleteOwnAccount FIRST while session/token are fully active!
-      await deleteOwnAccount().catch(() => {});
+      await deleteOwnAccount(targetId).catch(() => {});
 
       // 2. Clear user from ShopContext
       deleteUser(targetId, targetEmail);

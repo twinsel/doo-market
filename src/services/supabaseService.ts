@@ -367,26 +367,33 @@ export const fetchUsersFromSupabase = async (): Promise<User[] | null> => {
   }
 };
 
-export const deleteOwnAccount = async (): Promise<void> => {
-  // 1. Call SECURITY DEFINER RPC delete_my_account (works locally & in production)
-  try {
-    const { error } = await supabase.rpc('delete_my_account');
-    if (error) console.error('RPC delete_my_account error:', error);
-  } catch (e) {
-    console.error('RPC delete_my_account exception:', e);
+export const deleteOwnAccount = async (userId?: string): Promise<void> => {
+  let uid = userId || '';
+  if (!uid) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      uid = user?.id || '';
+    } catch {}
   }
 
-  // 2. Also try serverless API for redundancy in production
+  // 1. Call Serverless API directly with targetUserId (bypasses token expiration issues)
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      await fetch('/api/account', {
+    if (uid) {
+      await fetch(`/api/account?targetUserId=${encodeURIComponent(uid)}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${session.access_token}` }
-      }).catch(() => {});
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: uid, action: 'delete' })
+      });
     }
   } catch (e) {
-    console.warn('API delete account warning:', e);
+    console.warn('API delete account error:', e);
+  }
+
+  // 2. Call SECURITY DEFINER RPC delete_my_account
+  try {
+    await supabase.rpc('delete_my_account');
+  } catch (e) {
+    console.warn('RPC delete_my_account warning:', e);
   } finally {
     try {
       await supabase.auth.signOut();
