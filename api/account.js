@@ -31,7 +31,6 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' });
       }
 
-      // Check if user exists in auth
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: cleanEmail,
         password: String(password),
@@ -42,7 +41,6 @@ export default async function handler(req, res) {
       if (authError) {
         const exists = /already|registered|exists|duplicate/i.test(authError.message);
         if (exists) {
-          // Check if profile exists
           const { data: profile } = await supabase
             .from('users')
             .select('*')
@@ -115,54 +113,60 @@ export default async function handler(req, res) {
       return res.status(200).json(created);
     }
 
-    // ─── 3. حذف الحساب نهائياً ─────────────────────────────────────────
+    // ─── 3. حذف الحساب نهائياً (باستخدام Service Role Key حصرياً) ──────
     if (req.method === 'DELETE' || (req.method === 'POST' && req.body?.action === 'delete')) {
       const body = req.body || {};
       const query = req.query || {};
-      const user = await getUserFromReq(req).catch(() => null);
+      const authUser = await getUserFromReq(req).catch(() => null);
 
-      const deleteId = String(query.targetUserId || query.userId || query.id || body.targetUserId || body.userId || body.id || user?.id || '').trim();
-      const deleteEmail = String(query.targetEmail || query.email || body.targetEmail || body.email || user?.email || '').trim().toLowerCase();
+      const targetUserId = String(query.targetUserId || query.userId || query.id || body.targetUserId || body.userId || body.id || authUser?.id || '').trim();
+      const targetEmail = String(query.targetEmail || query.email || body.targetEmail || body.email || authUser?.email || '').trim().toLowerCase();
 
-      if (!deleteId && !deleteEmail) {
+      if (!targetUserId && !targetEmail) {
         return res.status(400).json({ error: 'لم يتم تحديد المستخدم للحذف' });
       }
 
-      console.log('Deleting user account via Serverless API:', { deleteId, deleteEmail });
+      console.log('Admin Serverless API Deleting User:', { targetUserId, targetEmail });
 
-      // Delete from public tables
-      if (deleteId) {
-        await supabase.from('users').delete().eq('id', deleteId).catch(() => {});
-        await supabase.from('user_roles').delete().eq('user_id', deleteId).catch(() => {});
-        await supabase.from('carts').delete().eq('user_id', deleteId).catch(() => {});
-        await supabase.from('wishlists').delete().eq('user_id', deleteId).catch(() => {});
-        await supabase.from('notifications').delete().eq('user_id', deleteId).catch(() => {});
-        await supabase.from('reviews').delete().eq('user_id', deleteId).catch(() => {});
-      }
+      let userIdToDelete = targetUserId;
 
-      if (deleteEmail) {
-        await supabase.from('users').delete().ilike('email', deleteEmail).catch(() => {});
-      }
-
-      // Delete from auth.users permanently via Admin API
-      if (deleteId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deleteId)) {
-        await supabase.auth.admin.deleteUser(deleteId).catch(() => {});
-      }
-
-      if (deleteEmail) {
-        try {
-          const { data: listData } = await supabase.auth.admin.listUsers();
-          const found = listData?.users?.find(u => u.email?.toLowerCase() === deleteEmail);
-          if (found?.id) {
-            await supabase.from('users').delete().eq('id', found.id).catch(() => {});
-            await supabase.auth.admin.deleteUser(found.id).catch(() => {});
-          }
-        } catch (e) {
-          console.warn('Auth admin listUsers deletion warning:', e);
+      if (!userIdToDelete && targetEmail) {
+        const { data: listData } = await supabase.auth.admin.listUsers();
+        const found = listData?.users?.find(u => u.email?.toLowerCase() === targetEmail);
+        if (found?.id) {
+          userIdToDelete = found.id;
         }
       }
 
-      console.log('User successfully deleted from auth and public tables.');
+      if (userIdToDelete) {
+        // Delete from all public tables
+        await supabase.from('carts').delete().eq('user_id', userIdToDelete).catch(() => {});
+        await supabase.from('wishlists').delete().eq('user_id', userIdToDelete).catch(() => {});
+        await supabase.from('notifications').delete().eq('user_id', userIdToDelete).catch(() => {});
+        await supabase.from('reviews').delete().eq('user_id', userIdToDelete).catch(() => {});
+        await supabase.from('user_roles').delete().eq('user_id', userIdToDelete).catch(() => {});
+        await supabase.from('users').delete().eq('id', userIdToDelete).catch(() => {});
+
+        // Delete from Supabase Auth (auth.users) using Admin API (Service Role)
+        const { error: delError } = await supabase.auth.admin.deleteUser(userIdToDelete);
+        if (delError) {
+          console.error('Supabase admin deleteUser error:', delError);
+          return res.status(400).json({ error: delError.message });
+        }
+      }
+
+      if (targetEmail) {
+        await supabase.from('users').delete().ilike('email', targetEmail).catch(() => {});
+        try {
+          const { data: listData } = await supabase.auth.admin.listUsers();
+          const found = listData?.users?.find(u => u.email?.toLowerCase() === targetEmail);
+          if (found?.id && found.id !== userIdToDelete) {
+            await supabase.auth.admin.deleteUser(found.id).catch(() => {});
+          }
+        } catch {}
+      }
+
+      console.log('User successfully and permanently deleted from Supabase Auth and Database.');
       return res.status(200).json({ ok: true });
     }
 
