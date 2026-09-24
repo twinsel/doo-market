@@ -1,0 +1,48 @@
+========================================================================
+Doo Market - Complete Full-Stack Architecture & Environment Configuration
+GitHub + Vercel + Supabase Master Backup Archive v12 (Letter-by-Letter)
+========================================================================
+
+1. SUPABASE DATABASE CONFIGURATION (PostgreSQL Schema)
+------------------------------------------------------------------------
+- Project Reference: cuhopbhqtoxccoflogyy
+- Supabase URL: https://cuhopbhqtoxccoflogyy.supabase.co
+- SQL Migration File: src/lib/schema.sql
+- Realtime Enabled Tables:
+  * ALTER PUBLICATION supabase_realtime ADD TABLE public.users;
+  * ALTER PUBLICATION supabase_realtime ADD TABLE public.store_settings;
+  * ALTER PUBLICATION supabase_realtime ADD TABLE public.user_roles;
+- Active RLS Policies:
+  * "Allow public select users" ON public.users FOR SELECT USING (true)
+  * "Allow user signup" ON public.users FOR INSERT WITH CHECK (true)
+  * "Allow user role signup" ON public.user_roles FOR INSERT WITH CHECK (true)
+- Implemented Functions & Triggers:
+  * handle_new_user() -> Trigger on auth.users AFTER INSERT
+  * delete_own_account() -> RPC function for atomic account & auth child table deletion
+  * admin_delete_user(UUID) -> Admin RPC function for atomic session & user wiping
+  * delete_user_completely(TEXT) -> Email/ID based RPC account deletion
+  * admin_set_role(UUID, TEXT) -> Admin RPC role assignment
+  * check_login_attempts(TEXT) -> OWASP brute-force protection RPC
+  * record_failed_attempt(TEXT) -> OWASP failed login recorder
+  * reset_attempts(TEXT) -> OWASP login reset
+
+2. VERCEL SERVERLESS ENVIRONMENT CONFIGURATION
+------------------------------------------------------------------------
+- Vercel Project Name: doo-market
+- Vercel Domain: https://doo-market.vercel.app
+- Serverless API Routes: /api/account.js (Node.js Handler)
+- Vercel Rewrite Config: vercel.json ({ "source": "/api/(.*)", "destination": "/api/$1" })
+- Configured Environment Variables in Vercel Dashboard:
+  * VITE_SUPABASE_URL = https://cuhopbhqtoxccoflogyy.supabase.co
+  * VITE_SUPABASE_ANON_KEY = sb_publishable_G9PbwL7JJffxKToCSSnQ-w_G3cYLQMT
+  * SUPABASE_SERVICE_ROLE_KEY = sb_secret_lpiRL6ug9oG2--c5cIWCew_S_KyqxKY
+
+3. GITHUB REPOSITORY CONFIGURATION
+------------------------------------------------------------------------
+- Repository URL: https://github.com/munzeralsmaeel/doo-market.git
+- Branch: main (Production Branch linked to Vercel Automatic Deployment)
+- GitHub Actions Workflow: .github/workflows/webpack.yml (Vite build enabled)
+
+========================================================================
+Stored & Backed Up on: September 9, 2026
+========================================================================
