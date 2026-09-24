@@ -367,65 +367,35 @@ export const fetchUsersFromSupabase = async (): Promise<User[] | null> => {
   }
 };
 
-export const deleteOwnAccount = async (explicitUserId?: string, explicitUserEmail?: string): Promise<void> => {
-  let userId = (explicitUserId || '').trim();
-  let userEmail = (explicitUserEmail || '').trim().toLowerCase();
-
-  if (!userId || !userEmail) {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        userId = userId || user.id;
-        userEmail = userEmail || (user.email || '').toLowerCase();
-      }
-    } catch {}
-  }
-
-  // 1. Try Master Serverless API delete (for production Vercel deployment)
+export const deleteOwnAccount = async (): Promise<void> => {
   try {
-    const deleteApiUrl = `/api/account?targetUserId=${encodeURIComponent(userId)}&targetEmail=${encodeURIComponent(userEmail)}`;
-    await fetch(deleteApiUrl, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targetUserId: userId, targetEmail: userEmail, action: 'delete' })
-    });
+    await supabase.rpc('delete_own_account');
   } catch (e) {
-    console.warn('API delete account warning:', e);
+    console.warn('RPC delete_own_account warning:', e);
   }
 
-  // 2. Direct client-side cleanup and DB RPC deletion (Ensures local & production deletion works 100%)
   try {
-    if (userId) {
-      try { await supabase.from('carts').delete().eq('user_id', userId); } catch {}
-      try { await supabase.from('wishlists').delete().eq('user_id', userId); } catch {}
-      try { await supabase.from('notifications').delete().eq('user_id', userId); } catch {}
-      try { await supabase.from('reviews').delete().eq('user_id', userId); } catch {}
-      try { await supabase.from('user_roles').delete().eq('user_id', userId); } catch {}
-      try { await supabase.from('users').delete().eq('id', userId); } catch {}
-    }
-    if (userEmail) {
-      try { await supabase.from('users').delete().ilike('email', userEmail); } catch {}
-    }
-    try { await supabase.rpc('delete_own_account'); } catch {}
-    if (userEmail) {
-      try { await supabase.rpc('delete_user_completely', { p_email: userEmail }); } catch {}
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.email) {
+      await supabase.rpc('delete_user_completely', { p_email: user.email.toLowerCase() });
     }
   } catch (e) {
-    console.warn('Client-side deletion cleanup warning:', e);
+    console.warn('RPC delete_user_completely warning:', e);
   }
 
-  // 3. Broadcast Realtime deletion event
   try {
-    const channel = supabase.channel('realtime_user_deletion_channel');
-    await channel.send({
-      type: 'broadcast',
-      event: 'user_deleted',
-      payload: { userId, email: userEmail }
-    });
-  } catch {}
-
-  // 4. Sign out
-  await supabase.auth.signOut().catch(() => {});
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      await fetch('/api/account', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      }).catch(() => {});
+    }
+  } catch (e) {
+    console.warn('API delete account error:', e);
+  } finally {
+    await supabase.auth.signOut().catch(() => {});
+  }
 };
 
 export const deleteUserFromSupabase = async (identifier: string, userEmail?: string) => {

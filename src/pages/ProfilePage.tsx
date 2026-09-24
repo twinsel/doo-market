@@ -256,7 +256,7 @@ export const ProfilePage: React.FC = () => {
       deleteUser(targetId, targetEmail);
 
       // 3. Single atomic delete call via Serverless API & Sign out
-      await deleteOwnAccount(targetId, targetEmail).catch(() => {});
+      await deleteOwnAccount().catch(() => {});
 
       setIsDeleting(false);
       setIsDeleteModalOpen(false);
