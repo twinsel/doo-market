@@ -187,10 +187,14 @@ export default async function handler(req, res) {
 
       const tables = ['carts', 'wishlists', 'notifications', 'reviews', 'user_roles'];
       for (const table of tables) {
-        await supabase.from(table).delete().eq('user_id', requestedId).catch(() => {});
+        try {
+          await supabase.from(table).delete().eq('user_id', requestedId);
+        } catch {}
       }
 
-      await supabase.from('users').delete().eq('id', requestedId).catch(() => {});
+      try {
+        await supabase.from('users').delete().eq('id', requestedId);
+      } catch {}
 
       const { error: deleteErr } = await supabase.auth.admin.deleteUser(requestedId);
       if (deleteErr) {
