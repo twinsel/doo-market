@@ -139,13 +139,18 @@ export default async function handler(req, res) {
 
       // 2. Delete by ID using RPC and direct tables
       if (deleteId) {
+        await supabase.from('carts').delete().eq('user_id', deleteId).catch(() => {});
+        await supabase.from('wishlists').delete().eq('user_id', deleteId).catch(() => {});
+        await supabase.from('notifications').delete().eq('user_id', deleteId).catch(() => {});
+        await supabase.from('reviews').delete().eq('user_id', deleteId).catch(() => {});
+        await supabase.from('user_roles').delete().eq('user_id', deleteId).catch(() => {});
+        await supabase.from('users').delete().eq('id', deleteId).catch(() => {});
+
         await supabase.rpc('delete_user_completely', { p_email: deleteId }).catch(() => {});
         if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deleteId)) {
           await supabase.rpc('admin_delete_user', { target_user_id: deleteId }).catch(() => {});
           await supabase.auth.admin.deleteUser(deleteId).catch(() => {});
         }
-        await supabase.from('users').delete().eq('id', deleteId).catch(() => {});
-        await supabase.from('user_roles').delete().eq('user_id', deleteId).catch(() => {});
       }
 
       // 3. Find and delete permanently from auth.users via Admin API by email
@@ -154,8 +159,13 @@ export default async function handler(req, res) {
           const { data: listData } = await supabase.auth.admin.listUsers();
           const found = listData?.users?.find(u => u.email?.toLowerCase() === deleteEmail);
           if (found?.id) {
-            await supabase.auth.admin.deleteUser(found.id).catch(() => {});
+            await supabase.from('carts').delete().eq('user_id', found.id).catch(() => {});
+            await supabase.from('wishlists').delete().eq('user_id', found.id).catch(() => {});
+            await supabase.from('notifications').delete().eq('user_id', found.id).catch(() => {});
+            await supabase.from('reviews').delete().eq('user_id', found.id).catch(() => {});
+            await supabase.from('user_roles').delete().eq('user_id', found.id).catch(() => {});
             await supabase.from('users').delete().eq('id', found.id).catch(() => {});
+            await supabase.auth.admin.deleteUser(found.id).catch(() => {});
           }
         } catch (e) {
           console.warn('Auth admin listUsers deletion warning:', e);

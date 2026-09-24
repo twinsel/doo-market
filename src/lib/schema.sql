@@ -266,9 +266,13 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
+  DELETE FROM public.carts WHERE user_id = v_uid;
+  DELETE FROM public.wishlists WHERE user_id = v_uid;
+  DELETE FROM public.notifications WHERE user_id = v_uid;
+  DELETE FROM public.reviews WHERE user_id = v_uid;
   DELETE FROM public.user_roles WHERE user_id = v_uid;
   DELETE FROM public.users WHERE id = v_uid;
-  DELETE FROM auth.refresh_tokens WHERE session_id IN (SELECT id FROM auth.sessions WHERE user_id = v_uid);
+  DELETE FROM auth.refresh_tokens WHERE session_id IN (SELECT id::text FROM auth.sessions WHERE user_id = v_uid);
   DELETE FROM auth.sessions WHERE user_id = v_uid;
   DELETE FROM auth.identities WHERE user_id = v_uid;
   DELETE FROM auth.users WHERE id = v_uid;
@@ -283,9 +287,13 @@ BEGIN
     RAISE EXCEPTION 'Access denied: Admin role required';
   END IF;
 
+  DELETE FROM public.carts WHERE user_id = target_user_id;
+  DELETE FROM public.wishlists WHERE user_id = target_user_id;
+  DELETE FROM public.notifications WHERE user_id = target_user_id;
+  DELETE FROM public.reviews WHERE user_id = target_user_id;
   DELETE FROM public.user_roles WHERE user_id = target_user_id;
   DELETE FROM public.users WHERE id = target_user_id;
-  DELETE FROM auth.refresh_tokens WHERE session_id IN (SELECT id FROM auth.sessions WHERE user_id = target_user_id);
+  DELETE FROM auth.refresh_tokens WHERE session_id IN (SELECT id::text FROM auth.sessions WHERE user_id = target_user_id);
   DELETE FROM auth.sessions WHERE user_id = target_user_id;
   DELETE FROM auth.identities WHERE user_id = target_user_id;
   DELETE FROM auth.users WHERE id = target_user_id;
@@ -302,17 +310,30 @@ BEGIN
     RAISE EXCEPTION 'Access denied: Admin role required';
   END IF;
 
-  SELECT id INTO v_user_id FROM auth.users WHERE LOWER(email) = LOWER(p_email) OR id::text = p_email;
+  IF p_email ~* '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' THEN
+    SELECT id INTO v_user_id FROM auth.users WHERE id = p_email::uuid OR LOWER(email) = LOWER(p_email);
+  ELSE
+    SELECT id INTO v_user_id FROM auth.users WHERE LOWER(email) = LOWER(p_email);
+  END IF;
 
   IF v_user_id IS NOT NULL THEN
+    DELETE FROM public.carts WHERE user_id = v_user_id;
+    DELETE FROM public.wishlists WHERE user_id = v_user_id;
+    DELETE FROM public.notifications WHERE user_id = v_user_id;
+    DELETE FROM public.reviews WHERE user_id = v_user_id;
     DELETE FROM public.user_roles WHERE user_id = v_user_id;
     DELETE FROM public.users WHERE id = v_user_id OR LOWER(email) = LOWER(p_email);
-    DELETE FROM auth.refresh_tokens WHERE session_id IN (SELECT id FROM auth.sessions WHERE user_id = v_user_id);
+    DELETE FROM auth.refresh_tokens WHERE session_id IN (SELECT id::text FROM auth.sessions WHERE user_id = v_user_id);
     DELETE FROM auth.sessions WHERE user_id = v_user_id;
     DELETE FROM auth.identities WHERE user_id = v_user_id;
     DELETE FROM auth.users WHERE id = v_user_id;
   ELSE
-    DELETE FROM public.users WHERE LOWER(email) = LOWER(p_email) OR id::text = p_email;
+    DELETE FROM public.carts WHERE user_id IN (SELECT id FROM public.users WHERE LOWER(email) = LOWER(p_email));
+    DELETE FROM public.wishlists WHERE user_id IN (SELECT id FROM public.users WHERE LOWER(email) = LOWER(p_email));
+    DELETE FROM public.notifications WHERE user_id IN (SELECT id FROM public.users WHERE LOWER(email) = LOWER(p_email));
+    DELETE FROM public.reviews WHERE user_id IN (SELECT id FROM public.users WHERE LOWER(email) = LOWER(p_email));
+    DELETE FROM public.user_roles WHERE user_id IN (SELECT id FROM public.users WHERE LOWER(email) = LOWER(p_email));
+    DELETE FROM public.users WHERE LOWER(email) = LOWER(p_email);
   END IF;
 END;
 $$;
