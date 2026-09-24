@@ -26,7 +26,7 @@ import {
 import { useShop } from '../../context/ShopContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { fetchUsersFromSupabase, deleteUserFromSupabase, syncUserToSupabase } from '../../services/supabaseService';
+import { fetchUsersFromSupabase, deleteUserFromSupabase, syncUserToSupabase, adminDeleteUser } from '../../services/supabaseService';
 import { supabase } from '../../lib/supabase';
 
 // ============================================================
@@ -656,6 +656,18 @@ export const AdminUsersPage: React.FC = () => {
     const targetId = userToDelete.id;
     const targetEmail = userToDelete.email;
 
+    if (!targetId) {
+      alert('معرف المستخدم غير صالح');
+      return;
+    }
+
+    const result = await adminDeleteUser(targetId);
+
+    if (!result.ok) {
+      alert(result.error || 'فشل حذف المستخدم');
+      return;
+    }
+
     // 1. Instantly filter and remove card from React UI State (0.01s instant update)
     setRemoteDbUsers(prev => prev.filter(u =>
       u.id !== targetId &&
@@ -667,9 +679,6 @@ export const AdminUsersPage: React.FC = () => {
 
     setUserToDelete(null);
     if (selectedUser?.id === targetId) setSelectedUser(null);
-
-    // 3. Delete from Supabase DB in background
-    await deleteUserFromSupabase(targetId, targetEmail);
   };
 
   return (

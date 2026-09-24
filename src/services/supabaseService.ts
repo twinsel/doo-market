@@ -367,37 +367,74 @@ export const fetchUsersFromSupabase = async (): Promise<User[] | null> => {
   }
 };
 
-export const deleteOwnAccount = async (userId?: string): Promise<void> => {
-  let uid = userId || '';
-  if (!uid) {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      uid = user?.id || '';
-    } catch {}
-  }
-
-  // 1. Call Serverless API directly with targetUserId (bypasses token expiration issues)
+export const deleteOwnAccount = async (): Promise<{ ok: boolean; error?: string }> => {
   try {
-    if (uid) {
-      await fetch(`/api/account?targetUserId=${encodeURIComponent(uid)}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetUserId: uid, action: 'delete' })
-      });
+    const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
+
+    if (sessionErr || !session?.access_token) {
+      return { ok: false, error: 'لا توجد جلسة نشطة' };
     }
-  } catch (e) {
-    console.warn('API delete account error:', e);
-  }
 
-  // 2. Call SECURITY DEFINER RPC delete_my_account
+    const res = await fetch('/api/account', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({ action: 'delete' })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: data.error || `فشل الحذف (HTTP ${res.status})`
+      };
+    }
+
+    await supabase.auth.signOut().catch(() => {});
+
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'خطأ غير متوقع' };
+  }
+};
+
+export const adminDeleteUser = async (
+  targetUserId: string
+): Promise<{ ok: boolean; error?: string }> => {
   try {
-    await supabase.rpc('delete_my_account');
-  } catch (e) {
-    console.warn('RPC delete_my_account warning:', e);
-  } finally {
-    try {
-      await supabase.auth.signOut();
-    } catch {}
+    if (!targetUserId) {
+      return { ok: false, error: 'معرف المستخدم مطلوب' };
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      return { ok: false, error: 'يجب تسجيل الدخول كأدمن' };
+    }
+
+    const res = await fetch('/api/account', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({ action: 'delete', targetUserId })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: data.error || `فشل الحذف (HTTP ${res.status})`
+      };
+    }
+
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'خطأ غير متوقع' };
   }
 };
 

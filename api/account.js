@@ -1,25 +1,59 @@
+// api/account.js
 import supabase from './db-client.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// ============================================================
+// Helpers
+// ============================================================
 
 async function getUserFromReq(req) {
-  const token = req.headers.authorization?.replace('Bearer ', '');
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
   if (!token) return null;
-  const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data?.user) return null;
-  return data.user;
+
+  try {
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data?.user) return null;
+    return data.user;
+  } catch {
+    return null;
+  }
 }
 
+async function isAdminUser(userId) {
+  if (!userId || !UUID_RE.test(userId)) return false;
+  try {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) return false;
+    return data?.role === 'admin';
+  } catch {
+    return false;
+  }
+}
+
+// ============================================================
+// Handler
+// ============================================================
+
 export default async function handler(req, res) {
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   try {
-    // ─── 1. إنشاء حساب جديد ─────────────────────────────────────────
-    if (req.method === 'POST') {
-      const { email, password, fullName, phone, role } = req.body || {};
+    // ─────────────────────────────────────────────────────────
+    // POST: إنشاء حساب جديد
+    // ─────────────────────────────────────────────────────────
+    if (req.method === 'POST' && req.body?.action !== 'delete') {
+      const { email, password, fullName, phone } = req.body || {};
       const cleanEmail = String(email || '').trim().toLowerCase();
       const cleanName = String(fullName || '').trim() || cleanEmail.split('@')[0];
       const cleanPhone = String(phone || '').trim();
@@ -35,7 +69,10 @@ export default async function handler(req, res) {
         email: cleanEmail,
         password: String(password),
         email_confirm: true,
-        user_metadata: { name: cleanName, phone: cleanPhone, role: role || 'buyer' }
+        user_metadata: {
+          name: cleanName,
+          phone: cleanPhone
+        }
       });
 
       if (authError) {
@@ -46,7 +83,6 @@ export default async function handler(req, res) {
             .select('*')
             .eq('email', cleanEmail)
             .maybeSingle();
-
           if (profile) {
             return res.status(200).json({ ok: true, user: profile, isExisting: true });
           }
@@ -57,33 +93,36 @@ export default async function handler(req, res) {
       }
 
       const userId = authData.user.id;
-      const newUser = {
+
+      await supabase.from('users').upsert({
         id: userId,
         name: cleanName,
         email: cleanEmail,
         phone: cleanPhone,
-        role: role || 'buyer',
+        role: 'buyer',
         joined_at: 'اليوم'
-      };
-
-      await supabase.from('users').upsert({
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        phone: newUser.phone,
-        role: newUser.role,
-        joined_at: newUser.joined_at
       });
 
       await supabase.from('user_roles').upsert({
         user_id: userId,
-        role: role || 'buyer'
+        role: 'buyer'
       });
 
-      return res.status(201).json({ ok: true, user: newUser });
+      return res.status(201).json({
+        ok: true,
+        user: {
+          id: userId,
+          name: cleanName,
+          email: cleanEmail,
+          phone: cleanPhone,
+          role: 'buyer'
+        }
+      });
     }
 
-    // ─── 2. جلب بيانات الحساب الحالي ─────────────────────────────────
+    // ─────────────────────────────────────────────────────────
+    // GET: جلب بيانات الحساب الحالي
+    // ─────────────────────────────────────────────────────────
     if (req.method === 'GET') {
       const user = await getUserFromReq(req);
       if (!user) return res.status(401).json({ error: 'غير مصرح' });
@@ -98,7 +137,6 @@ export default async function handler(req, res) {
 
       const fallbackName =
         user.user_metadata?.name ||
-        user.user_metadata?.full_name ||
         (user.email ? user.email.split('@')[0] : 'مستخدم');
 
       const created = {
@@ -108,45 +146,88 @@ export default async function handler(req, res) {
         phone: user.user_metadata?.phone || '',
         role: 'buyer'
       };
-
       await supabase.from('users').upsert(created);
       return res.status(200).json(created);
     }
 
-    // ─── 3. حذف الحساب نهائياً ─────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────
+    // DELETE: حذف حساب (مع منع IDOR + فحص admin)
+    // ─────────────────────────────────────────────────────────
     if (req.method === 'DELETE' || (req.method === 'POST' && req.body?.action === 'delete')) {
+      const authUser = await getUserFromReq(req);
+      if (!authUser) {
+        return res.status(401).json({ error: 'غير مصرح: يجب تسجيل الدخول' });
+      }
+
       const body = req.body || {};
       const query = req.query || {};
-      const authUser = await getUserFromReq(req).catch(() => null);
 
-      const targetId = String(query.targetUserId || query.userId || query.id || body.targetUserId || body.userId || body.id || authUser?.id || '').trim();
+      const requestedId = String(
+        query.targetUserId ||
+        query.userId ||
+        body.targetUserId ||
+        body.userId ||
+        ''
+      ).trim();
 
-      if (!targetId) {
-        return res.status(400).json({ error: 'لم يتم تحديد المستخدم للحذف' });
+      let targetId;
+      let isSelfDelete = false;
+
+      if (!requestedId || requestedId === authUser.id) {
+        targetId = authUser.id;
+        isSelfDelete = true;
+      } else {
+        const admin = await isAdminUser(authUser.id);
+        if (!admin) {
+          return res.status(403).json({
+            error: 'ممنوع: صلاحيات الأدمن مطلوبة لحذف مستخدم آخر'
+          });
+        }
+        targetId = requestedId;
       }
 
-      console.log('Admin Deleting User ID:', targetId);
+      if (!UUID_RE.test(targetId)) {
+        return res.status(400).json({ error: 'معرف مستخدم غير صالح' });
+      }
 
-      // Delete from public tables
-      await supabase.from('users').delete().eq('id', targetId).catch(() => {});
-      await supabase.from('user_roles').delete().eq('user_id', targetId).catch(() => {});
-      await supabase.from('carts').delete().eq('user_id', targetId).catch(() => {});
-      await supabase.from('wishlists').delete().eq('user_id', targetId).catch(() => {});
-      await supabase.from('notifications').delete().eq('user_id', targetId).catch(() => {});
-      await supabase.from('reviews').delete().eq('user_id', targetId).catch(() => {});
+      console.log(`[DELETE] ${isSelfDelete ? 'SELF' : 'ADMIN'} → ${targetId}`);
 
-      // Delete from auth.users permanently via Admin API (Service Role)
+      const tables = ['carts', 'wishlists', 'notifications', 'reviews', 'user_roles'];
+      for (const table of tables) {
+        const { error } = await supabase.from(table).delete().eq('user_id', targetId);
+        if (error) {
+          console.warn(`[DELETE] ${table} cleanup warning:`, error.message);
+        }
+      }
+
+      {
+        const { error } = await supabase.from('users').delete().eq('id', targetId);
+        if (error) {
+          console.warn('[DELETE] public.users cleanup warning:', error.message);
+        }
+      }
+
       const { error: deleteErr } = await supabase.auth.admin.deleteUser(targetId);
       if (deleteErr) {
-        console.warn('Admin deleteUser warning:', deleteErr.message);
+        console.error('[DELETE] auth.admin.deleteUser FAILED:', deleteErr);
+        return res.status(500).json({
+          error: 'فشل حذف المستخدم من نظام المصادقة',
+          details: deleteErr.message
+        });
       }
 
-      return res.status(200).json({ ok: true });
+      return res.status(200).json({
+        ok: true,
+        deletedId: targetId,
+        selfDelete: isSelfDelete
+      });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
-    console.error('API Error:', err);
-    return res.status(500).json({ error: err.message || 'خطأ في الخادم' });
+    console.error('[API ERROR]', err);
+    return res.status(500).json({
+      error: err?.message || 'خطأ غير متوقع في الخادم'
+    });
   }
 }

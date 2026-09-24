@@ -246,13 +246,14 @@ export const ProfilePage: React.FC = () => {
     const targetEmail = currentUser.email;
 
     try {
-      // 1. Call deleteOwnAccount FIRST while session/token are fully active!
-      await deleteOwnAccount(targetId).catch(() => {});
+      const result = await deleteOwnAccount();
 
-      // 2. Clear user from ShopContext
-      deleteUser(targetId, targetEmail);
+      if (!result.ok) {
+        alert(result.error || 'فشل حذف الحساب، يرجى المحاولة لاحقًا');
+        setIsDeleting(false);
+        return;
+      }
 
-      // 3. Wipe localStorage and sessionStorage completely
       try {
         localStorage.clear();
         sessionStorage.clear();
@@ -261,10 +262,9 @@ export const ProfilePage: React.FC = () => {
       setIsDeleting(false);
       setIsDeleteModalOpen(false);
 
-      // 4. Force redirect instantly
       window.location.href = `${window.location.origin}/#/auth?tab=register`;
-    } catch (e) {
-      console.error('Delete account fallback:', e);
+    } catch (e: any) {
+      console.error('Delete account error:', e);
       setIsDeleting(false);
       try {
         localStorage.clear();
