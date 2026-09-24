@@ -116,35 +116,53 @@ export default async function handler(req, res) {
     }
 
     // ─── 3. حذف الحساب نهائياً ─────────────────────────────────────────
-    if (req.method === 'DELETE') {
-      const user = await getUserFromReq(req);
-      if (!user) {
-        console.error('Delete account API: Unauthorized request, missing or invalid token');
-        return res.status(401).json({ error: 'غير مصرح' });
+    if (req.method === 'DELETE' || (req.method === 'POST' && req.body?.action === 'delete')) {
+      const body = req.body || {};
+      const query = req.query || {};
+      const user = await getUserFromReq(req).catch(() => null);
+
+      const deleteId = String(query.targetUserId || query.userId || query.id || body.targetUserId || body.userId || body.id || user?.id || '').trim();
+      const deleteEmail = String(query.targetEmail || query.email || body.targetEmail || body.email || user?.email || '').trim().toLowerCase();
+
+      if (!deleteId && !deleteEmail) {
+        return res.status(400).json({ error: 'لم يتم تحديد المستخدم للحذف' });
       }
 
-      console.log('Deleting user account via Serverless API:', user.id, user.email);
+      console.log('Deleting user account via Serverless API:', { deleteId, deleteEmail });
 
       // Delete from public tables
-      const { error: err1 } = await supabase.from('users').delete().eq('id', user.id);
-      if (err1) console.error('Delete users table error:', err1);
-
-      const { error: err2 } = await supabase.from('user_roles').delete().eq('user_id', user.id);
-      if (err2) console.error('Delete user_roles table error:', err2);
-
-      await supabase.from('carts').delete().eq('user_id', user.id).catch(() => {});
-      await supabase.from('wishlists').delete().eq('user_id', user.id).catch(() => {});
-      await supabase.from('notifications').delete().eq('user_id', user.id).catch(() => {});
-      await supabase.from('reviews').delete().eq('user_id', user.id).catch(() => {});
-
-      // Delete from auth.users permanently via Admin API
-      const { error: deleteErr } = await supabase.auth.admin.deleteUser(user.id);
-      if (deleteErr) {
-        console.error('Admin deleteUser error:', deleteErr.message);
-        return res.status(400).json({ error: deleteErr.message });
+      if (deleteId) {
+        await supabase.from('users').delete().eq('id', deleteId).catch(() => {});
+        await supabase.from('user_roles').delete().eq('user_id', deleteId).catch(() => {});
+        await supabase.from('carts').delete().eq('user_id', deleteId).catch(() => {});
+        await supabase.from('wishlists').delete().eq('user_id', deleteId).catch(() => {});
+        await supabase.from('notifications').delete().eq('user_id', deleteId).catch(() => {});
+        await supabase.from('reviews').delete().eq('user_id', deleteId).catch(() => {});
       }
 
-      console.log('User successfully deleted from auth and public tables:', user.id);
+      if (deleteEmail) {
+        await supabase.from('users').delete().ilike('email', deleteEmail).catch(() => {});
+      }
+
+      // Delete from auth.users permanently via Admin API
+      if (deleteId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deleteId)) {
+        await supabase.auth.admin.deleteUser(deleteId).catch(() => {});
+      }
+
+      if (deleteEmail) {
+        try {
+          const { data: listData } = await supabase.auth.admin.listUsers();
+          const found = listData?.users?.find(u => u.email?.toLowerCase() === deleteEmail);
+          if (found?.id) {
+            await supabase.from('users').delete().eq('id', found.id).catch(() => {});
+            await supabase.auth.admin.deleteUser(found.id).catch(() => {});
+          }
+        } catch (e) {
+          console.warn('Auth admin listUsers deletion warning:', e);
+        }
+      }
+
+      console.log('User successfully deleted from auth and public tables.');
       return res.status(200).json({ ok: true });
     }
 

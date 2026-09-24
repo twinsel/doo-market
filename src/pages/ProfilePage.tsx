@@ -246,17 +246,17 @@ export const ProfilePage: React.FC = () => {
     const targetEmail = currentUser.email;
 
     try {
-      // 1. Wipe localStorage and sessionStorage immediately for instant feedback
-      try {
-        localStorage.clear();
-        sessionStorage.clear();
-      } catch {}
+      // 1. Call deleteOwnAccount FIRST while session/token are fully active!
+      await deleteOwnAccount(targetId, targetEmail).catch(() => {});
 
       // 2. Clear user from ShopContext
       deleteUser(targetId, targetEmail);
 
-      // 3. Single atomic delete call via Serverless API & Sign out
-      await deleteOwnAccount().catch(() => {});
+      // 3. Wipe localStorage and sessionStorage completely
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {}
 
       setIsDeleting(false);
       setIsDeleteModalOpen(false);

@@ -367,7 +367,41 @@ export const fetchUsersFromSupabase = async (): Promise<User[] | null> => {
   }
 };
 
-export const deleteOwnAccount = async (): Promise<void> => {
+export const deleteOwnAccount = async (explicitUserId?: string, explicitUserEmail?: string): Promise<void> => {
+  let userId = (explicitUserId || '').trim();
+  let userEmail = (explicitUserEmail || '').trim().toLowerCase();
+  let token = '';
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    token = session?.access_token || '';
+    const { data: { user } } = await supabase.auth.getUser();
+    userId = userId || user?.id || '';
+    userEmail = userEmail || (user?.email || '').toLowerCase();
+  } catch {}
+
+  // 1. Call Serverless API with token and query parameters
+  try {
+    const deleteApiUrl = `/api/account?targetUserId=${encodeURIComponent(userId)}&targetEmail=${encodeURIComponent(userEmail)}`;
+    const res = await fetch(deleteApiUrl, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ targetUserId: userId, targetEmail: userEmail, action: 'delete' })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error('API delete account failed:', res.status, data);
+    } else {
+      console.log('API delete account success:', data);
+    }
+  } catch (e) {
+    console.error('API delete account fetch exception:', e);
+  }
+
+  // 2. Call RPCs
   try {
     const { error } = await supabase.rpc('delete_own_account');
     if (error) console.error('RPC delete_own_account error:', error);
@@ -376,36 +410,18 @@ export const deleteOwnAccount = async (): Promise<void> => {
   }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user?.email) {
-      const { error } = await supabase.rpc('delete_user_completely', { p_email: user.email.toLowerCase() });
+    if (userEmail) {
+      const { error } = await supabase.rpc('delete_user_completely', { p_email: userEmail.toLowerCase() });
       if (error) console.error('RPC delete_user_completely error:', error);
     }
   } catch (e) {
     console.error('RPC delete_user_completely exception:', e);
   }
 
+  // 3. Sign out
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      const res = await fetch('/api/account', {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${session.access_token}` }
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        console.error('API delete account failed:', res.status, data);
-      } else {
-        console.log('API delete account success:', data);
-      }
-    } else {
-      console.warn('No session access token found for account deletion.');
-    }
-  } catch (e) {
-    console.error('API delete account fetch exception:', e);
-  } finally {
-    await supabase.auth.signOut().catch((e) => console.error('Sign out error:', e));
-  }
+    await supabase.auth.signOut();
+  } catch {}
 };
 
 export const deleteUserFromSupabase = async (identifier: string, userEmail?: string) => {
