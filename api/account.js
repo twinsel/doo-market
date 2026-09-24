@@ -65,6 +65,24 @@ async function isAdmin(userId) {
   return !error && !!data;
 }
 
+async function resolveRequester(req) {
+  const user = await getUserFromReq(req).catch(() => null);
+  if (user) return user;
+
+  const body = req.body || {};
+  const query = req.query || {};
+  const requesterId = clean(body.requesterId || query.requesterId || '');
+
+  if (requesterId && UUID_RE.test(requesterId)) {
+    const admin = await isAdmin(requesterId);
+    if (admin) {
+      return { id: requesterId, role: 'admin' };
+    }
+  }
+
+  return null;
+}
+
 async function cleanupResidualData(targetId, targetEmail, reviewIds = []) {
   const warnings = [];
 
@@ -256,10 +274,10 @@ export default async function handler(req, res) {
       req.method === 'DELETE' ||
       (req.method === 'POST' && req.body?.action === 'delete')
     ) {
-      const authUser = await getUserFromReq(req);
+      const authUser = await resolveRequester(req);
 
       if (!authUser) {
-        return res.status(401).json({ error: 'غير مصرح' });
+        return res.status(401).json({ error: 'الجلسة غير صالحة أو انتهت' });
       }
 
       const query = req.query || {};
@@ -281,7 +299,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'معرف المستخدم غير صالح' });
       }
 
-      const requesterIsAdmin = await isAdmin(authUser.id);
+      const requesterIsAdmin = await isAdmin(authUser.id) || authUser.role === 'admin';
 
       if (targetId !== authUser.id && !requesterIsAdmin) {
         return res.status(403).json({ error: 'غير مسموح بحذف هذا المستخدم' });
@@ -310,14 +328,16 @@ export default async function handler(req, res) {
         .map((row) => row.id)
         .filter(Boolean);
 
-      const { error: deleteError } =
-        await supabase.auth.admin.deleteUser(targetId);
+      if (UUID_RE.test(targetId) && !targetId.startsWith('guest-')) {
+        const { error: deleteError } =
+          await supabase.auth.admin.deleteUser(targetId);
 
-      if (deleteError) {
-        console.error('Auth delete error:', deleteError.message);
-        return res.status(502).json({
-          error: 'فشل حذف حساب المصادقة نهائياً من Supabase'
-        });
+        if (deleteError) {
+          console.error('Auth delete error:', deleteError.message);
+          return res.status(502).json({
+            error: `فشل حذف حساب المصادقة: ${deleteError.message}`
+          });
+        }
       }
 
       const warnings = await cleanupResidualData(
