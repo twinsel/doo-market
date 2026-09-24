@@ -367,40 +367,74 @@ export const fetchUsersFromSupabase = async (): Promise<User[] | null> => {
   }
 };
 
-export const deleteOwnAccount = async (userId?: string): Promise<{ ok: boolean; error?: string }> => {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const deleteOwnAccount = async (
+  userId?: string
+): Promise<{ ok: boolean; error?: string }> => {
   try {
-    let uid = userId || '';
-    if (!uid) {
-      const { data: { user } } = await supabase.auth.getUser();
-      uid = user?.id || '';
+    const { data: authData } = await supabase.auth.getUser();
+    const uid = authData.user?.id || userId || '';
+
+    if (!uid || !UUID_RE.test(uid)) {
+      return { ok: false, error: 'تعذر تحديد حساب المستخدم الحالي' };
     }
 
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token || '';
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
 
-    const res = await fetch(`/api/account?targetUserId=${encodeURIComponent(uid)}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      },
-      body: JSON.stringify({ action: 'delete', targetUserId: uid })
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      return {
-        ok: false,
-        error: data.error || `فشل الحذف (HTTP ${res.status})`
-      };
+    if (!token) {
+      return { ok: false, error: 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى' };
     }
 
-    await supabase.auth.signOut().catch(() => {});
+    let lastError = '';
 
-    return { ok: true };
+    try {
+      const res = await fetch(
+        `/api/account?targetUserId=${encodeURIComponent(uid)}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json'
+          }
+        }
+      );
+
+      const data = await res.json().catch(() => null);
+
+      if (res.ok && data?.ok) {
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+        return { ok: true };
+      }
+
+      lastError = data?.error || `فشل طلب الحذف من الخادم (${res.status})`;
+    } catch (e: any) {
+      lastError = e?.message || 'فشل الاتصال بخادم الحذف';
+    }
+
+    try {
+      const { error } = await supabase.rpc('delete_own_account');
+
+      if (!error) {
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+        return { ok: true };
+      }
+
+      lastError = error.message || lastError;
+    } catch (e: any) {
+      lastError = e?.message || lastError;
+    }
+
+    return {
+      ok: false,
+      error: lastError || 'تعذر حذف الحساب نهائياً، يرجى المحاولة لاحقاً'
+    };
   } catch (e: any) {
-    return { ok: false, error: e?.message || 'خطأ غير متوقع' };
+    return {
+      ok: false,
+      error: e?.message || 'حدث خطأ غير متوقع أثناء حذف الحساب'
+    };
   }
 };
 
@@ -408,36 +442,45 @@ export const adminDeleteUser = async (
   targetUserId: string
 ): Promise<{ ok: boolean; error?: string }> => {
   try {
-    if (!targetUserId) {
-      return { ok: false, error: 'معرف المستخدم مطلوب' };
+    const targetId = cleanString(targetUserId);
+
+    if (!UUID_RE.test(targetId)) {
+      return { ok: false, error: 'معرف المستخدم غير صالح' };
     }
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      return { ok: false, error: 'يجب تسجيل الدخول كأدمن' };
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+
+    if (!token) {
+      return { ok: false, error: 'الجلسة غير صالحة' };
     }
 
-    const res = await fetch('/api/account', {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`
-      },
-      body: JSON.stringify({ action: 'delete', targetUserId })
-    });
+    const res = await fetch(
+      `/api/account?targetUserId=${encodeURIComponent(targetId)}`,
+      {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json'
+        }
+      }
+    );
 
-    const data = await res.json().catch(() => ({}));
+    const data = await res.json().catch(() => null);
 
-    if (!res.ok) {
+    if (!res.ok || !data?.ok) {
       return {
         ok: false,
-        error: data.error || `فشل الحذف (HTTP ${res.status})`
+        error: data?.error || 'فشل حذف المستخدم'
       };
     }
 
     return { ok: true };
   } catch (e: any) {
-    return { ok: false, error: e?.message || 'خطأ غير متوقع' };
+    return {
+      ok: false,
+      error: e?.message || 'حدث خطأ أثناء حذف المستخدم'
+    };
   }
 };
 
