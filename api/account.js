@@ -196,13 +196,17 @@ export default async function handler(req, res) {
         await supabase.from('users').delete().eq('id', requestedId);
       } catch {}
 
-      const { error: deleteErr } = await supabase.auth.admin.deleteUser(requestedId);
-      if (deleteErr) {
-        console.error('[DELETE] auth.admin.deleteUser FAILED:', deleteErr);
-        return res.status(500).json({
-          error: `فشل حذف المستخدم من نظام المصادقة: ${deleteErr.message || 'خطأ غير معروف'}`,
-          details: deleteErr.message
-        });
+      if (UUID_RE.test(requestedId) && !requestedId.startsWith('guest-')) {
+        const { error: deleteErr } = await supabase.auth.admin.deleteUser(requestedId);
+        if (deleteErr) {
+          console.error('[DELETE] auth.admin.deleteUser FAILED:', deleteErr);
+          return res.status(500).json({
+            error: `فشل حذف المستخدم من نظام المصادقة: ${deleteErr.message || 'خطأ غير معروف'}`,
+            details: deleteErr.message
+          });
+        }
+      } else {
+        console.log('[DELETE] Skipping auth.admin.deleteUser for non-UUID or guest ID:', requestedId);
       }
 
       return res.status(200).json({
