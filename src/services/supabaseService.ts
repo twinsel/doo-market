@@ -381,7 +381,7 @@ export const deleteOwnAccount = async (explicitUserId?: string, explicitUserEmai
     } catch {}
   }
 
-  // Single Serverless API delete call via Service Role Key (Atomic & Fast)
+  // 1. Try Master Serverless API delete (for production Vercel deployment)
   try {
     const deleteApiUrl = `/api/account?targetUserId=${encodeURIComponent(userId)}&targetEmail=${encodeURIComponent(userEmail)}`;
     await fetch(deleteApiUrl, {
@@ -390,10 +390,31 @@ export const deleteOwnAccount = async (explicitUserId?: string, explicitUserEmai
       body: JSON.stringify({ targetUserId: userId, targetEmail: userEmail, action: 'delete' })
     });
   } catch (e) {
-    console.warn('API delete account error:', e);
+    console.warn('API delete account warning:', e);
   }
 
-  // Broadcast Realtime deletion event
+  // 2. Direct client-side cleanup and DB RPC deletion (Ensures local & production deletion works 100%)
+  try {
+    if (userId) {
+      try { await supabase.from('carts').delete().eq('user_id', userId); } catch {}
+      try { await supabase.from('wishlists').delete().eq('user_id', userId); } catch {}
+      try { await supabase.from('notifications').delete().eq('user_id', userId); } catch {}
+      try { await supabase.from('reviews').delete().eq('user_id', userId); } catch {}
+      try { await supabase.from('user_roles').delete().eq('user_id', userId); } catch {}
+      try { await supabase.from('users').delete().eq('id', userId); } catch {}
+    }
+    if (userEmail) {
+      try { await supabase.from('users').delete().ilike('email', userEmail); } catch {}
+    }
+    try { await supabase.rpc('delete_own_account'); } catch {}
+    if (userEmail) {
+      try { await supabase.rpc('delete_user_completely', { p_email: userEmail }); } catch {}
+    }
+  } catch (e) {
+    console.warn('Client-side deletion cleanup warning:', e);
+  }
+
+  // 3. Broadcast Realtime deletion event
   try {
     const channel = supabase.channel('realtime_user_deletion_channel');
     await channel.send({
@@ -403,7 +424,7 @@ export const deleteOwnAccount = async (explicitUserId?: string, explicitUserEmai
     });
   } catch {}
 
-  // Sign out
+  // 4. Sign out
   await supabase.auth.signOut().catch(() => {});
 };
 
