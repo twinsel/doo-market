@@ -200,7 +200,7 @@ export default async function handler(req, res) {
       if (deleteErr) {
         console.error('[DELETE] auth.admin.deleteUser FAILED:', deleteErr);
         return res.status(500).json({
-          error: 'فشل حذف المستخدم من نظام المصادقة',
+          error: `فشل حذف المستخدم من نظام المصادقة: ${deleteErr.message || 'خطأ غير معروف'}`,
           details: deleteErr.message
         });
       }
