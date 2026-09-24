@@ -14,7 +14,7 @@ import { setUserOnlineStatus } from './supabaseService';
 
 export class AuthService {
   /**
-   * ✅ تسجيل الدخول - آمن حسب معايير OWASP
+   * ✅ تسجيل الدخول - سريع وفوري
    */
   static async login(emailInput: string, passwordInput: string): Promise<User> {
     const email = cleanString(emailInput).toLowerCase();
@@ -28,8 +28,6 @@ export class AuthService {
       throw new Error(AUTH_MESSAGES.login.accountLocked(minutes));
     }
 
-    await this.addRandomDelay();
-
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -38,21 +36,19 @@ export class AuthService {
 
       if (error || !data.user) {
         await RateLimitService.recordFailedAttempt(email);
-        await this.addRandomDelay();
         throw new Error(AUTH_MESSAGES.login.invalidCredentials);
       }
 
       await RateLimitService.resetAttempts(email);
 
-      // Set online status in DB & broadcast realtime presence
-      await setUserOnlineStatus(data.user.id, true, email);
+      // Set online status in DB & fetch profile/role in parallel
+      await setUserOnlineStatus(data.user.id, true, email).catch(() => {});
 
       const [profile, role] = await Promise.all([
         this.getUserProfile(data.user.id),
         this.getUserRole(data.user.id),
+        this.updateLastLogin(data.user.id),
       ]);
-
-      await this.updateLastLogin(data.user.id);
 
       return {
         id: data.user.id,
@@ -76,23 +72,13 @@ export class AuthService {
   }
 
   /**
-   * ✅ إنشاء حساب جديد - معالجة محايدة وآمنة حسب معايير OWASP
+   * ✅ إنشاء حساب جديد - سريع وفوري (يعتمد على قاعدة البيانات والتريجر الذري)
    */
   static async register(dataInput: RegisterFormData): Promise<User> {
-    await this.addRandomDelay();
-
     const cleanName = cleanString(dataInput.name);
     const cleanEmail = cleanString(dataInput.email).toLowerCase();
     const cleanPhone = cleanString(dataInput.phone || '');
     const cleanPassword = cleanString(dataInput.password);
-
-    const data: RegisterFormData = {
-      ...dataInput,
-      name: cleanName,
-      email: cleanEmail,
-      phone: cleanPhone,
-      password: cleanPassword,
-    };
 
     try {
       const { data: authData, error } = await supabase.auth.signUp({
@@ -123,15 +109,12 @@ export class AuthService {
       const userId = authData.user.id;
       const newUser: User = {
         id: userId,
-        name: data.name.trim() || 'مستخدم',
-        email: data.email.trim(),
-        phone: (data.phone || '').trim(),
+        name: cleanName || 'مستخدم',
+        email: cleanEmail,
+        phone: cleanPhone,
         role: 'buyer',
         createdAt: new Date().toISOString(),
       };
-
-      await this.createUserProfile(userId, data);
-      await this.setUserRole(userId, 'buyer');
 
       return newUser;
 
