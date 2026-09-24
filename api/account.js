@@ -118,22 +118,33 @@ export default async function handler(req, res) {
     // ─── 3. حذف الحساب نهائياً ─────────────────────────────────────────
     if (req.method === 'DELETE') {
       const user = await getUserFromReq(req);
-      if (!user) return res.status(401).json({ error: 'غير مصرح' });
+      if (!user) {
+        console.error('Delete account API: Unauthorized request, missing or invalid token');
+        return res.status(401).json({ error: 'غير مصرح' });
+      }
+
+      console.log('Deleting user account via Serverless API:', user.id, user.email);
 
       // Delete from public tables
-      await supabase.from('users').delete().eq('id', user.id);
-      await supabase.from('user_roles').delete().eq('user_id', user.id);
-      await supabase.from('carts').delete().eq('user_id', user.id);
-      await supabase.from('wishlists').delete().eq('user_id', user.id);
+      const { error: err1 } = await supabase.from('users').delete().eq('id', user.id);
+      if (err1) console.error('Delete users table error:', err1);
+
+      const { error: err2 } = await supabase.from('user_roles').delete().eq('user_id', user.id);
+      if (err2) console.error('Delete user_roles table error:', err2);
+
+      await supabase.from('carts').delete().eq('user_id', user.id).catch(() => {});
+      await supabase.from('wishlists').delete().eq('user_id', user.id).catch(() => {});
       await supabase.from('notifications').delete().eq('user_id', user.id).catch(() => {});
       await supabase.from('reviews').delete().eq('user_id', user.id).catch(() => {});
 
       // Delete from auth.users permanently via Admin API
       const { error: deleteErr } = await supabase.auth.admin.deleteUser(user.id);
       if (deleteErr) {
-        console.warn('Admin deleteUser warning:', deleteErr.message);
+        console.error('Admin deleteUser error:', deleteErr.message);
+        return res.status(400).json({ error: deleteErr.message });
       }
 
+      console.log('User successfully deleted from auth and public tables:', user.id);
       return res.status(200).json({ ok: true });
     }
 

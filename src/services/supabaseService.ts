@@ -369,32 +369,42 @@ export const fetchUsersFromSupabase = async (): Promise<User[] | null> => {
 
 export const deleteOwnAccount = async (): Promise<void> => {
   try {
-    await supabase.rpc('delete_own_account');
+    const { error } = await supabase.rpc('delete_own_account');
+    if (error) console.error('RPC delete_own_account error:', error);
   } catch (e) {
-    console.warn('RPC delete_own_account warning:', e);
+    console.error('RPC delete_own_account exception:', e);
   }
 
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (user?.email) {
-      await supabase.rpc('delete_user_completely', { p_email: user.email.toLowerCase() });
+      const { error } = await supabase.rpc('delete_user_completely', { p_email: user.email.toLowerCase() });
+      if (error) console.error('RPC delete_user_completely error:', error);
     }
   } catch (e) {
-    console.warn('RPC delete_user_completely warning:', e);
+    console.error('RPC delete_user_completely exception:', e);
   }
 
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.access_token) {
-      await fetch('/api/account', {
+      const res = await fetch('/api/account', {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${session.access_token}` }
-      }).catch(() => {});
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        console.error('API delete account failed:', res.status, data);
+      } else {
+        console.log('API delete account success:', data);
+      }
+    } else {
+      console.warn('No session access token found for account deletion.');
     }
   } catch (e) {
-    console.warn('API delete account error:', e);
+    console.error('API delete account fetch exception:', e);
   } finally {
-    await supabase.auth.signOut().catch(() => {});
+    await supabase.auth.signOut().catch((e) => console.error('Sign out error:', e));
   }
 };
 
