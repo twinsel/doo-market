@@ -336,6 +336,7 @@ export const syncUserToSupabase = async (user: User & { isOnline?: boolean }) =>
           is_online: user.isOnline ?? true,
           last_login_at: new Date().toISOString()
         });
+        broadcastUserUpdated(targetId, cleanEmail, user);
       } catch {}
     }
   } catch (e) {
@@ -369,6 +370,63 @@ export const fetchUsersFromSupabase = async (): Promise<User[] | null> => {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// ============================================================
+// Realtime Broadcast Helpers
+// ============================================================
+export const broadcastUserDeleted = async (userId?: string, email?: string) => {
+  const cleanId = (userId || '').trim();
+  const cleanEmail = (email || '').trim().toLowerCase();
+  if (!cleanId && !cleanEmail) return;
+
+  try {
+    const channelName = `del_bc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const channel = supabase.channel(channelName);
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        channel.send({
+          type: 'broadcast',
+          event: 'user_deleted',
+          payload: { userId: cleanId, email: cleanEmail }
+        }).then(() => {
+          setTimeout(() => {
+            try { supabase.removeChannel(channel); } catch {}
+          }, 1000);
+        });
+      }
+    });
+  } catch (e) {
+    console.warn('Broadcast user_deleted error:', e);
+  }
+};
+
+export const broadcastUserUpdated = async (userId?: string, email?: string, user?: any) => {
+  const cleanId = (userId || '').trim();
+  const cleanEmail = (email || '').trim().toLowerCase();
+  if (!cleanId && !cleanEmail) return;
+
+  try {
+    const channelName = `upd_bc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const channel = supabase.channel(channelName);
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        channel.send({
+          type: 'broadcast',
+          event: 'user_updated',
+          payload: { userId: cleanId, email: cleanEmail, user }
+        }).then(() => {
+          setTimeout(() => {
+            try { supabase.removeChannel(channel); } catch {}
+          }, 1000);
+        });
+      }
+    });
+  } catch (e) {
+    console.warn('Broadcast user_updated error:', e);
+  }
+};
+
 export const deleteOwnAccount = async (
   userId?: string
 ): Promise<{ ok: boolean; error?: string }> => {
@@ -377,8 +435,8 @@ export const deleteOwnAccount = async (
     const uid = authData?.user?.id || userId || '';
 
     if (!uid || !UUID_RE.test(uid)) {
-      // Fallback: If UID not valid or guest session, force local logout
       await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+      broadcastUserDeleted(userId);
       return { ok: true };
     }
 
@@ -408,6 +466,7 @@ export const deleteOwnAccount = async (
 
         if (res.ok && data?.ok) {
           await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+          broadcastUserDeleted(uid);
           return { ok: true };
         }
       } catch (e: any) {
@@ -426,6 +485,7 @@ export const deleteOwnAccount = async (
 
       if (!error) {
         await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+        broadcastUserDeleted(uid);
         return { ok: true };
       }
     } catch (e: any) {
@@ -448,10 +508,12 @@ export const deleteOwnAccount = async (
 
     // Sign out locally regardless so the session is terminated and user is logged out
     await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+    broadcastUserDeleted(uid);
 
     return { ok: true };
   } catch (e: any) {
     await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+    broadcastUserDeleted(userId);
     return { ok: true };
   }
 };
@@ -511,6 +573,7 @@ export const adminDeleteUser = async (
       };
     }
 
+    broadcastUserDeleted(targetId);
     return { ok: true };
   } catch (e: any) {
     return {
@@ -551,16 +614,7 @@ export const deleteUserFromSupabase = async (identifier: string, userEmail?: str
     }
 
     // 3. Broadcast RealTime user deletion event to kick out deleted user
-    try {
-      const channel = supabase.channel('realtime_user_deletion_channel');
-      await channel.send({
-        type: 'broadcast',
-        event: 'user_deleted',
-        payload: { userId: cleanId, email: cleanEmail }
-      });
-    } catch (e) {
-      console.warn('Realtime deletion broadcast warning:', e);
-    }
+    broadcastUserDeleted(cleanId, cleanEmail);
   } catch (e) {
     console.error('Failed to delete user from Supabase:', e);
   }

@@ -516,17 +516,18 @@ export const AdminUsersPage: React.FC = () => {
       })
       .subscribe();
 
-    // 3. Instant Realtime User Deletion Broadcast Channel
+    // 3. Instant Realtime User Deletion & Update Broadcast Channel
     const deletionChannel = supabase
       .channel('realtime_user_deletion_channel')
       .on('broadcast', { event: 'user_deleted' }, async (payload: any) => {
-        const deletedId = (payload?.payload?.userId || '').trim();
-        const deletedEmail = (payload?.payload?.email || '').trim().toLowerCase();
+        const data = payload?.payload || payload || {};
+        const deletedId = (data.userId || data.id || '').trim();
+        const deletedEmail = (data.email || '').trim().toLowerCase();
 
-        // Filter and remove deleted user card from React UI immediately (~50ms)
+        // Filter and remove deleted user card from React UI immediately (~10ms)
         setRemoteDbUsers(prev => prev.filter(u =>
-          u.id !== deletedId &&
-          (!deletedEmail || u.email?.toLowerCase() !== deletedEmail)
+          (deletedId ? u.id !== deletedId : true) &&
+          (deletedEmail ? u.email?.toLowerCase() !== deletedEmail : true)
         ));
 
         // Save to permanent blacklist so card can never reappear
@@ -545,15 +546,21 @@ export const AdminUsersPage: React.FC = () => {
           setRemoteDbUsers(fetched);
         }
       })
+      .on('broadcast', { event: 'user_updated' }, async () => {
+        const fetched = await fetchUsersFromSupabase().catch(() => null);
+        if (fetched) {
+          setRemoteDbUsers(fetched);
+        }
+      })
       .subscribe();
 
-    // 4. Fast 3-second Background Status Poller (Guarantees zero manual refresh needed)
+    // 4. Fast 2-second Background Status Poller (Guarantees zero manual refresh needed)
     const interval = setInterval(async () => {
       const fetched = await fetchUsersFromSupabase().catch(() => null);
       if (fetched) {
         setRemoteDbUsers(fetched);
       }
-    }, 3000);
+    }, 2000);
 
     return () => {
       supabase.removeChannel(presenceChannel);

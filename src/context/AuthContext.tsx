@@ -114,8 +114,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
+    // Realtime Deletion & Update Broadcast Listener (~50ms instant cross-device sync)
+    const realtimeChannel = supabase
+      .channel('realtime_user_deletion_channel')
+      .on('broadcast', { event: 'user_deleted' }, (payload: any) => {
+        const data = payload?.payload || payload || {};
+        const deletedId = (data.userId || data.id || '').trim();
+        const deletedEmail = (data.email || '').trim().toLowerCase();
+
+        setUser((prev) => {
+          if (
+            prev &&
+            ((deletedId && prev.id === deletedId) ||
+              (deletedEmail && prev.email?.toLowerCase() === deletedEmail))
+          ) {
+            try {
+              localStorage.clear();
+              sessionStorage.clear();
+            } catch {}
+            supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+            window.location.href = `${window.location.origin}/#/auth?tab=register`;
+            return null;
+          }
+          return prev;
+        });
+      })
+      .on('broadcast', { event: 'user_updated' }, (payload: any) => {
+        const data = payload?.payload || payload || {};
+        const updatedId = (data.userId || data.id || '').trim();
+        const updatedEmail = (data.email || '').trim().toLowerCase();
+
+        setUser((prev) => {
+          if (
+            prev &&
+            ((updatedId && prev.id === updatedId) ||
+              (updatedEmail && prev.email?.toLowerCase() === updatedEmail))
+          ) {
+            AuthService.getCurrentUser().then((refreshed) => {
+              if (refreshed) {
+                setUser(refreshed);
+                setIsAdmin(refreshed.role === 'admin');
+              }
+            }).catch(() => {});
+          }
+          return prev;
+        });
+      })
+      .subscribe();
+
     return () => {
       subscription.unsubscribe();
+      supabase.removeChannel(realtimeChannel);
     };
   }, []);
 
