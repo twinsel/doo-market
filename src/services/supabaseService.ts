@@ -448,11 +448,23 @@ export const adminDeleteUser = async (
       return { ok: false, error: 'معرف المستخدم غير صالح' };
     }
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
+    let token = '';
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      token = sessionData.session?.access_token || '';
+    } catch {}
 
-    if (!token) {
-      return { ok: false, error: 'الجلسة غير صالحة' };
+    let requesterId = '';
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      requesterId = userData.user?.id || '';
+    } catch {}
+
+    if (!requesterId) {
+      try {
+        const cachedUser = JSON.parse(localStorage.getItem('doo_current_user') || '{}');
+        requesterId = cachedUser.id || '';
+      } catch {}
     }
 
     const res = await fetch(
@@ -460,9 +472,15 @@ export const adminDeleteUser = async (
       {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json'
-        }
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          action: 'delete',
+          targetUserId: targetId,
+          requesterId: requesterId
+        })
       }
     );
 
