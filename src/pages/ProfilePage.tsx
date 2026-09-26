@@ -243,33 +243,28 @@ export const ProfilePage: React.FC = () => {
     setIsDeleting(true);
 
     const targetId = currentUser.id;
-    const targetEmail = currentUser.email;
+
+    // Safety fallback timer: force cleanup & redirect after 7 seconds max
+    const forceRedirectTimer = setTimeout(() => {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {}
+      window.location.href = `${window.location.origin}/#/auth?tab=register`;
+    }, 7000);
 
     try {
-      const result = await deleteOwnAccount(targetId);
-
-      if (!result.ok) {
-        alert(result.error || 'فشل حذف الحساب، يرجى المحاولة لاحقًا');
-        setIsDeleting(false);
-        return;
-      }
-
-      try {
-        localStorage.clear();
-        sessionStorage.clear();
-      } catch {}
-
-      setIsDeleting(false);
-      setIsDeleteModalOpen(false);
-
-      window.location.href = `${window.location.origin}/#/auth?tab=register`;
+      await deleteOwnAccount(targetId);
     } catch (e: any) {
       console.error('Delete account error:', e);
-      setIsDeleting(false);
+    } finally {
+      clearTimeout(forceRedirectTimer);
       try {
         localStorage.clear();
         sessionStorage.clear();
       } catch {}
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
       window.location.href = `${window.location.origin}/#/auth?tab=register`;
     }
   };

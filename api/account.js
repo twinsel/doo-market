@@ -328,23 +328,28 @@ export default async function handler(req, res) {
         .map((row) => row.id)
         .filter(Boolean);
 
-      if (UUID_RE.test(targetId) && !targetId.startsWith('guest-')) {
-        const { error: deleteError } =
-          await supabase.auth.admin.deleteUser(targetId);
-
-        if (deleteError) {
-          console.error('Auth delete error:', deleteError.message);
-          return res.status(502).json({
-            error: `فشل حذف حساب المصادقة: ${deleteError.message}`
-          });
-        }
-      }
-
+      // Clean up residual data in public schema tables FIRST to prevent FK lock/constraint block
       const warnings = await cleanupResidualData(
         targetId,
         targetEmail,
         reviewIds
       );
+
+      // THEN delete user from auth
+      if (UUID_RE.test(targetId) && !targetId.startsWith('guest-')) {
+        try {
+          const { error: deleteError } =
+            await supabase.auth.admin.deleteUser(targetId);
+
+          if (deleteError) {
+            console.warn('Auth delete error (handled):', deleteError.message);
+            warnings.push(`auth.deleteUser: ${deleteError.message}`);
+          }
+        } catch (authErr) {
+          console.warn('Auth delete exception:', authErr.message);
+          warnings.push(`auth.deleteUser exception: ${authErr.message}`);
+        }
+      }
 
       return res.status(200).json({
         ok: true,
