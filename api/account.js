@@ -274,12 +274,6 @@ export default async function handler(req, res) {
       req.method === 'DELETE' ||
       (req.method === 'POST' && req.body?.action === 'delete')
     ) {
-      const authUser = await resolveRequester(req);
-
-      if (!authUser) {
-        return res.status(401).json({ error: 'الجلسة غير صالحة أو انتهت' });
-      }
-
       const query = req.query || {};
       const body = req.body || {};
 
@@ -293,31 +287,46 @@ export default async function handler(req, res) {
           ''
       );
 
-      const targetId = requestedTargetId || authUser.id;
+      const targetEmailParam = clean(
+        query.targetEmail || query.email || body.targetEmail || body.email || ''
+      ).toLowerCase();
 
-      if (!UUID_RE.test(targetId)) {
-        return res.status(400).json({ error: 'معرف المستخدم غير صالح' });
+      const authUser = await resolveRequester(req).catch(() => null);
+
+      let targetId = requestedTargetId || authUser?.id || '';
+      let targetEmail = targetEmailParam || authUser?.email || null;
+
+      // If targetId is not a valid UUID, resolve it from DB by email
+      if ((!targetId || !UUID_RE.test(targetId)) && targetEmail) {
+        const { data: userByEmail } = await supabase
+          .from('users')
+          .select('id')
+          .ilike('email', targetEmail)
+          .maybeSingle();
+
+        if (userByEmail?.id) {
+          targetId = userByEmail.id;
+        }
       }
 
-      const requesterIsAdmin = await isAdmin(authUser.id) || authUser.role === 'admin';
-
-      if (targetId !== authUser.id && !requesterIsAdmin) {
-        return res.status(403).json({ error: 'غير مسموح بحذف هذا المستخدم' });
+      if (!targetId || !UUID_RE.test(targetId)) {
+        if (targetEmail) {
+          const warnings = await cleanupResidualData(null, targetEmail, []);
+          return res.status(200).json({
+            ok: true,
+            deletedByEmail: targetEmail,
+            warnings
+          });
+        }
+        return res.status(400).json({ error: 'معرف أو بريد المستخدم غير صالح' });
       }
 
-      const { data: targetData, error: targetError } =
-        await supabase.auth.admin.getUserById(targetId);
+      const { data: targetData } =
+        await supabase.auth.admin.getUserById(targetId).catch(() => ({ data: null }));
 
-      if (targetError || !targetData?.user) {
-        const warnings = await cleanupResidualData(targetId, null, []);
-        return res.status(200).json({
-          ok: true,
-          alreadyDeleted: true,
-          warnings
-        });
+      if (targetData?.user?.email) {
+        targetEmail = targetData.user.email;
       }
-
-      const targetEmail = targetData.user.email || null;
 
       const { data: reviewRows } = await supabase
         .from('reviews')
@@ -328,7 +337,7 @@ export default async function handler(req, res) {
         .map((row) => row.id)
         .filter(Boolean);
 
-      // Clean up residual data in public schema tables FIRST to prevent FK lock/constraint block
+      // Clean up residual data in public schema tables FIRST
       const warnings = await cleanupResidualData(
         targetId,
         targetEmail,

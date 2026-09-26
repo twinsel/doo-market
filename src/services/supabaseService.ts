@@ -428,50 +428,53 @@ export const broadcastUserUpdated = async (userId?: string, email?: string, user
 };
 
 export const deleteOwnAccount = async (
-  userId?: string
+  userId?: string,
+  userEmail?: string
 ): Promise<{ ok: boolean; error?: string }> => {
   try {
     const { data: authData } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
     const uid = authData?.user?.id || userId || '';
-
-    if (!uid || !UUID_RE.test(uid)) {
-      await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-      broadcastUserDeleted(userId);
-      return { ok: true };
-    }
+    const email = authData?.user?.email || userEmail || '';
 
     const { data: sessionData } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
     const token = sessionData?.session?.access_token;
 
     // 1. Try Serverless API deletion with a 6s AbortController timeout
-    if (token) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-        const res = await fetch(
-          `/api/account?targetUserId=${encodeURIComponent(uid)}`,
-          {
-            method: 'DELETE',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              Accept: 'application/json'
-            },
-            signal: controller.signal
-          }
-        );
-        clearTimeout(timeoutId);
-
-        const data = await res.json().catch(() => null);
-
-        if (res.ok && data?.ok) {
-          await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-          broadcastUserDeleted(uid);
-          return { ok: true };
+      const res = await fetch(
+        `/api/account?targetUserId=${encodeURIComponent(uid)}&targetEmail=${encodeURIComponent(email)}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            action: 'delete',
+            targetUserId: uid,
+            targetEmail: email,
+            userId: uid,
+            email: email,
+            id: uid
+          }),
+          signal: controller.signal
         }
-      } catch (e: any) {
-        console.warn('API account deletion fetch failed/timed out:', e?.message);
+      );
+      clearTimeout(timeoutId);
+
+      const data = await res.json().catch(() => null);
+
+      if (res.ok && data?.ok) {
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+        broadcastUserDeleted(uid, email);
+        return { ok: true };
       }
+    } catch (e: any) {
+      console.warn('API account deletion fetch failed/timed out:', e?.message);
     }
 
     // 2. Try RPC function delete_own_account with timeout
@@ -485,7 +488,7 @@ export const deleteOwnAccount = async (
 
       if (!error) {
         await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-        broadcastUserDeleted(uid);
+        broadcastUserDeleted(uid, email);
         return { ok: true };
       }
     } catch (e: any) {
@@ -508,12 +511,12 @@ export const deleteOwnAccount = async (
 
     // Sign out locally regardless so the session is terminated and user is logged out
     await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-    broadcastUserDeleted(uid);
+    broadcastUserDeleted(uid, email);
 
     return { ok: true };
   } catch (e: any) {
     await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-    broadcastUserDeleted(userId);
+    broadcastUserDeleted(userId, userEmail);
     return { ok: true };
   }
 };

@@ -243,6 +243,7 @@ export const ProfilePage: React.FC = () => {
     setIsDeleting(true);
 
     const targetId = currentUser.id;
+    const targetEmail = currentUser.email;
 
     // Safety fallback timer: force cleanup & redirect after 7 seconds max
     const forceRedirectTimer = setTimeout(() => {
@@ -254,7 +255,7 @@ export const ProfilePage: React.FC = () => {
     }, 7000);
 
     try {
-      await deleteOwnAccount(targetId);
+      await deleteOwnAccount(targetId, targetEmail);
     } catch (e: any) {
       console.error('Delete account error:', e);
     } finally {
