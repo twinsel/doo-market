@@ -2,11 +2,10 @@
 
 import { supabase } from '../lib/supabase';
 import { User, UserRole } from '../types';
-import { RegisterFormData, cleanString } from '../schemas/auth.schema';
+import { RegisterFormData } from '../schemas/auth.schema';
 import { RateLimitService } from './rate-limit.service';
 import { ENV } from '../config/env';
 import { AUTH_MESSAGES } from '../constants/auth-messages';
-import { setUserOnlineStatus } from './supabaseService';
 
 // ============================================================
 // 1. خدمة المصادقة - AuthService (Strict Security OWASP 10/10)
@@ -14,12 +13,9 @@ import { setUserOnlineStatus } from './supabaseService';
 
 export class AuthService {
   /**
-   * ✅ تسجيل الدخول - سريع وفوري
+   * ✅ تسجيل الدخول - آمن حسب معايير OWASP
    */
-  static async login(emailInput: string, passwordInput: string): Promise<User> {
-    const email = cleanString(emailInput).toLowerCase();
-    const password = cleanString(passwordInput);
-
+  static async login(email: string, password: string): Promise<User> {
     const rateLimit = await RateLimitService.checkAttempts(email);
     if (!rateLimit.allowed) {
       const minutes = Math.ceil(
@@ -27,6 +23,8 @@ export class AuthService {
       );
       throw new Error(AUTH_MESSAGES.login.accountLocked(minutes));
     }
+
+    await this.addRandomDelay();
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -36,19 +34,18 @@ export class AuthService {
 
       if (error || !data.user) {
         await RateLimitService.recordFailedAttempt(email);
+        await this.addRandomDelay();
         throw new Error(AUTH_MESSAGES.login.invalidCredentials);
       }
 
       await RateLimitService.resetAttempts(email);
 
-      // Set online status in DB & fetch profile/role in parallel
-      await setUserOnlineStatus(data.user.id, true, email).catch(() => {});
-
       const [profile, role] = await Promise.all([
         this.getUserProfile(data.user.id),
         this.getUserRole(data.user.id),
-        this.updateLastLogin(data.user.id),
       ]);
+
+      await this.updateLastLogin(data.user.id);
 
       return {
         id: data.user.id,
@@ -72,34 +69,28 @@ export class AuthService {
   }
 
   /**
-   * ✅ إنشاء حساب جديد - سريع وفوري (يعتمد على قاعدة البيانات والتريجر الذري)
+   * ✅ إنشاء حساب جديد - معالجة محايدة وآمنة حسب معايير OWASP
    */
-  static async register(dataInput: RegisterFormData): Promise<User> {
-    const cleanName = cleanString(dataInput.name);
-    const cleanEmail = cleanString(dataInput.email).toLowerCase();
-    const cleanPhone = cleanString(dataInput.phone || '');
-    const cleanPassword = cleanString(dataInput.password);
+  static async register(data: RegisterFormData): Promise<User> {
+    await this.addRandomDelay();
 
     try {
       const { data: authData, error } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password: cleanPassword,
+        email: data.email,
+        password: data.password,
         options: {
           data: {
-            name: cleanName,
-            phone: cleanPhone,
+            name: data.name,
+            phone: data.phone || '',
           },
         },
       });
 
       if (error) {
-        if (error.message.toLowerCase().includes('already registered') || error.message.toLowerCase().includes('already exists')) {
-          throw new Error(AUTH_MESSAGES.register.emailExists);
+        if (error.message.includes('already registered')) {
+          throw new Error(AUTH_MESSAGES.register.emailSent);
         }
-        if (error.message.toLowerCase().includes('password')) {
-          throw new Error('كلمة المرور يجب أن تكون 8 أحرف على الأقل وتتضمن حرفاً كبيراً ورقماً');
-        }
-        throw new Error(error.message || AUTH_MESSAGES.register.generalError);
+        throw new Error(AUTH_MESSAGES.register.generalError);
       }
 
       if (!authData.user) {
@@ -109,17 +100,20 @@ export class AuthService {
       const userId = authData.user.id;
       const newUser: User = {
         id: userId,
-        name: cleanName || 'مستخدم',
-        email: cleanEmail,
-        phone: cleanPhone,
+        name: data.name.trim() || 'مستخدم',
+        email: data.email.trim(),
+        phone: (data.phone || '').trim(),
         role: 'buyer',
         createdAt: new Date().toISOString(),
       };
 
+      await this.createUserProfile(userId, data);
+      await this.setUserRole(userId, 'buyer');
+
       return newUser;
 
     } catch (error) {
-      if (error instanceof Error) {
+      if (error instanceof Error && error.message.includes('تم إرسال رابط')) {
         throw error;
       }
       throw new Error(AUTH_MESSAGES.register.generalError);
@@ -159,18 +153,9 @@ export class AuthService {
   }
 
   /**
-   * ✅ تسجيل الخروج - تحويل حالة المستخدم إلى أوفلاين أولاً قبل إنهاء الجلسة
+   * ✅ تسجيل الخروج
    */
   static async logout(): Promise<void> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await setUserOnlineStatus(user.id, false, user.email);
-      }
-    } catch (e) {
-      console.warn('Set offline status warning:', e);
-    }
-
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.warn('Logout warning:', error.message);

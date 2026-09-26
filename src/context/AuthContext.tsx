@@ -48,31 +48,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load User strictly from Supabase Auth Session
+  // Load User from Supabase Auth as Single Source of Truth
   useEffect(() => {
     const loadUser = async () => {
       setIsLoading(true);
       try {
         const currentUser = await AuthService.getCurrentUser();
+        setUser(currentUser);
         if (currentUser) {
-          setUser(currentUser);
           setIsAdmin(currentUser.role === 'admin');
           try {
             localStorage.setItem('doo_user_cache', JSON.stringify(currentUser));
           } catch {}
-        } else {
-          setUser(null);
-          setIsAdmin(false);
-          try {
-            localStorage.removeItem('doo_user_cache');
-          } catch {}
         }
       } catch (e) {
-        console.error('Failed to load user from Supabase session:', e);
-        setUser(null);
-        setIsAdmin(false);
+        console.error('Failed to load user:', e);
         try {
-          localStorage.removeItem('doo_user_cache');
+          const cached = localStorage.getItem('doo_user_cache');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            setUser(parsed);
+            setIsAdmin(parsed.role === 'admin');
+          }
         } catch {}
       } finally {
         setIsLoading(false);
@@ -81,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     loadUser();
 
-    // Listen strictly to Supabase Auth State Changes
+    // Listen to Supabase Auth State Changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
@@ -97,7 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } catch (e) {
             console.error('Auth sign in error:', e);
           }
-        } else if (event === 'SIGNED_OUT' || !session) {
+        } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setIsAdmin(false);
           try {
@@ -114,57 +111,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // Realtime Deletion & Update Broadcast Listener (~50ms instant cross-device sync)
-    const realtimeChannel = supabase
-      .channel('realtime_user_deletion_channel')
-      .on('broadcast', { event: 'user_deleted' }, (payload: any) => {
-        const data = payload?.payload || payload || {};
-        const deletedId = (data.userId || data.id || '').trim();
-        const deletedEmail = (data.email || '').trim().toLowerCase();
-
-        setUser((prev) => {
-          if (
-            prev &&
-            ((deletedId && prev.id === deletedId) ||
-              (deletedEmail && prev.email?.toLowerCase() === deletedEmail))
-          ) {
-            try {
-              localStorage.clear();
-              sessionStorage.clear();
-            } catch {}
-            supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-            window.location.href = `${window.location.origin}/#/auth?tab=register`;
-            return null;
-          }
-          return prev;
-        });
-      })
-      .on('broadcast', { event: 'user_updated' }, (payload: any) => {
-        const data = payload?.payload || payload || {};
-        const updatedId = (data.userId || data.id || '').trim();
-        const updatedEmail = (data.email || '').trim().toLowerCase();
-
-        setUser((prev) => {
-          if (
-            prev &&
-            ((updatedId && prev.id === updatedId) ||
-              (updatedEmail && prev.email?.toLowerCase() === updatedEmail))
-          ) {
-            AuthService.getCurrentUser().then((refreshed) => {
-              if (refreshed) {
-                setUser(refreshed);
-                setIsAdmin(refreshed.role === 'admin');
-              }
-            }).catch(() => {});
-          }
-          return prev;
-        });
-      })
-      .subscribe();
-
     return () => {
       subscription.unsubscribe();
-      supabase.removeChannel(realtimeChannel);
     };
   }, []);
 
@@ -265,17 +213,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           localStorage.setItem('doo_user_cache', JSON.stringify(currentUser));
         } catch {}
-      } else {
-        setUser(null);
-        setIsAdmin(false);
-        try {
-          localStorage.removeItem('doo_user_cache');
-        } catch {}
       }
     } catch (error) {
       console.error('Failed to refresh user:', error);
-      setUser(null);
-      setIsAdmin(false);
     } finally {
       setIsLoading(false);
     }

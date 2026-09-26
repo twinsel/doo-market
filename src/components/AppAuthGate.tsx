@@ -37,7 +37,7 @@ export const AppAuthGate: React.FC<AppAuthGateProps> = ({ onClose }) => {
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login, data, isAuthenticated, currentUser } = useShop();
+  const { login, data } = useShop();
 
   const handleAuthSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,21 +141,9 @@ export const AppAuthGate: React.FC<AppAuthGateProps> = ({ onClose }) => {
       >
         {/* Top Header */}
         <div className="flex flex-col items-center text-center space-y-4">
-          <button
-            type="button"
-            onClick={() => {
-              if (onClose) onClose();
-              if (isAuthenticated && !currentUser?.id?.startsWith('guest-')) {
-                window.location.hash = '#/home';
-              } else {
-                window.location.hash = '#/auth';
-              }
-            }}
-            className="flex items-center gap-2 transition-transform hover:scale-105 active:scale-95 cursor-pointer group"
-            title="دُو ماركت"
-          >
+          <div className="flex items-center gap-2">
             <BrandLogoBadge size="lg" />
-          </button>
+          </div>
 
           <div className="space-y-1">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 px-3.5 py-1 text-xs font-black text-orange-400 border border-orange-500/20">

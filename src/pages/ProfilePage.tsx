@@ -28,9 +28,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShop } from '../context/ShopContext';
 import { QrCodeCard } from '../components/QrCodeCard';
-import { ProfileEditModal } from '../components/profile/ProfileEditModal';
-import { ProfileDeleteModal } from '../components/profile/ProfileDeleteModal';
-import { ProfileAddressModal } from '../components/profile/ProfileAddressModal';
 import { Order, Address } from '../types';
 import { syncUserToSupabase, deleteUserFromSupabase, deleteOwnAccount } from '../services/supabaseService';
 import { supabase } from '../lib/supabase';
@@ -245,27 +242,37 @@ export const ProfilePage: React.FC = () => {
     const targetId = currentUser.id;
     const targetEmail = currentUser.email;
 
-    // Safety fallback timer: force cleanup & redirect after 7 seconds max
-    const forceRedirectTimer = setTimeout(() => {
-      try {
-        localStorage.clear();
-        sessionStorage.clear();
-      } catch {}
-      window.location.href = `${window.location.origin}/#/auth?tab=register`;
-    }, 7000);
-
     try {
-      await deleteOwnAccount(targetId, targetEmail);
-    } catch (e: any) {
-      console.error('Delete account error:', e);
-    } finally {
-      clearTimeout(forceRedirectTimer);
+      // 1. Delete own account via RPC & API
+      await deleteOwnAccount().catch(() => {});
+
+      // 2. Delete user data from Supabase DB tables
+      await deleteUserFromSupabase(targetId).catch(() => {});
+      if (targetEmail) {
+        await deleteUserFromSupabase(targetEmail).catch(() => {});
+      }
+
+      // 3. Clear user from ShopContext
+      deleteUser(targetId);
+
+      // 4. Wipe localStorage and sessionStorage completely
       try {
         localStorage.clear();
         sessionStorage.clear();
       } catch {}
+
       setIsDeleting(false);
       setIsDeleteModalOpen(false);
+
+      // 5. Force redirect to register tab cleanly
+      window.location.href = `${window.location.origin}/#/auth?tab=register`;
+    } catch (e) {
+      console.error('Delete account fallback:', e);
+      setIsDeleting(false);
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {}
       window.location.href = `${window.location.origin}/#/auth?tab=register`;
     }
   };
@@ -412,30 +419,207 @@ export const ProfilePage: React.FC = () => {
 
       {/* ============================================================ */}
       {/* EDIT PROFILE MODAL */}
-      <ProfileEditModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        currentUser={currentUser}
-        editName={editName}
-        setEditName={setEditName}
-        editPhone={editPhone}
-        setEditPhone={setEditPhone}
-        editAvatar={editAvatar}
-        setEditAvatar={setEditAvatar}
-        editSuccessMsg={editSuccessMsg}
-        isSavingProfile={isSavingProfile}
-        handleSaveProfile={handleSaveProfile}
-        handleImageUpload={handleImageUpload}
-        presetAvatars={presetAvatars}
-      />
+      {/* ============================================================ */}
+      <AnimatePresence>
+        {isEditModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar"
+            >
+              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
+                  <Edit3 size={18} className="text-orange-500" />
+                  تعديل البيانات الشخصية
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                >
+                  <X size={18} />
+                </button>
+              </div>
 
+              {editSuccessMsg && (
+                <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-bold text-emerald-600 flex items-center gap-2">
+                  <CheckCircle2 size={16} />
+                  <span>{editSuccessMsg}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveProfile} className="space-y-4">
+                {/* Avatar Selection & Upload */}
+                <div className="space-y-2 text-right">
+                  <label className="block text-xs font-bold text-gray-600">الصورة الشخصية</label>
+                  <div className="flex items-center gap-4">
+                    <div className="relative h-16 w-16 rounded-2xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-black text-xl overflow-hidden shadow-inner shrink-0 ring-2 ring-orange-100">
+                      {editAvatar ? (
+                        <img src={editAvatar} className="h-full w-full object-cover" alt="" />
+                      ) : (
+                        currentUser.name.charAt(0)
+                      )}
+                    </div>
+
+                    <div className="flex-1 space-y-1.5">
+                      <label className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-orange-300 bg-orange-50/50 p-2 text-xs font-black text-orange-600 hover:bg-orange-100 transition-colors cursor-pointer">
+                        <Upload size={14} />
+                        <span>تحميل صورة من جهازك</span>
+                        <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                      </label>
+                      {editAvatar && (
+                        <button
+                          type="button"
+                          onClick={() => setEditAvatar('')}
+                          className="text-[10px] font-bold text-red-500 hover:underline block"
+                        >
+                          إزالة الصورة الشخصية
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Preset Avatars Row */}
+                  <div className="pt-2">
+                    <p className="text-[10px] font-bold text-gray-400 mb-1.5">أو اختر صورة رمزية جاهزة:</p>
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
+                      {presetAvatars.map((url, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setEditAvatar(url)}
+                          className={`h-10 w-10 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${
+                            editAvatar === url ? 'border-orange-500 ring-2 ring-orange-500/30 scale-105' : 'border-gray-200 hover:border-orange-300'
+                          }`}
+                        >
+                          <img src={url} className="h-full w-full object-cover" alt="" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1 text-right">
+                  <label className="block text-xs font-bold text-gray-600">الاسم الكامل</label>
+                  <input
+                    type="text"
+                    required
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 p-3 text-sm font-bold text-gray-900 outline-none focus:border-orange-500 focus:bg-white"
+                  />
+                </div>
+
+                <div className="space-y-1 text-right">
+                  <label className="block text-xs font-bold text-gray-600">رقم الجوال</label>
+                  <input
+                    type="tel"
+                    value={editPhone}
+                    onChange={e => setEditPhone(e.target.value)}
+                    placeholder="0901234567"
+                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 p-3 text-sm font-bold text-gray-900 outline-none focus:border-orange-500 focus:bg-white"
+                  />
+                </div>
+
+                <div className="space-y-1 text-right opacity-60">
+                  <label className="block text-xs font-bold text-gray-500">البريد الإلكتروني (غير قابل للتعديل)</label>
+                  <input
+                    type="email"
+                    disabled
+                    value={currentUser.email || ''}
+                    className="w-full rounded-2xl border border-gray-200 bg-gray-100 p-3 text-sm font-bold text-gray-500 cursor-not-allowed"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    disabled={isSavingProfile}
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="rounded-2xl bg-gray-100 px-5 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-200 disabled:opacity-50"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingProfile}
+                    className={`flex items-center justify-center gap-2 rounded-2xl px-6 py-2.5 text-xs font-black text-white shadow-md transition-all active:scale-95 ${
+                      isSavingProfile
+                        ? 'bg-slate-800 shadow-slate-800/20 cursor-wait'
+                        : 'bg-orange-500 shadow-orange-500/20 hover:bg-orange-600'
+                    }`}
+                  >
+                    {isSavingProfile ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin text-orange-400" />
+                        <span>جاري الحفظ...</span>
+                      </>
+                    ) : (
+                      <span>حفظ التعديلات</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ============================================================ */}
       {/* DELETE ACCOUNT CONFIRMATION MODAL */}
-      <ProfileDeleteModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        isDeleting={isDeleting}
-        onConfirmDelete={handleConfirmDeleteAccount}
-      />
+      {/* ============================================================ */}
+      <AnimatePresence>
+        {isDeleteModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4 text-center"
+            >
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
+                <AlertTriangle size={32} />
+              </div>
+
+              <h3 className="text-lg font-black text-gray-900">حذف الحساب نهائياً</h3>
+              <p className="text-xs text-gray-500 font-bold leading-relaxed">
+                هل أنت متأكد من رغبتك في حذف حسابك نهائياً؟ سيتم مسح جميع بياناتك وعناوينك وطلباتك المخزنة ولا يمكن التراجع عن هذا الإجراء.
+              </p>
+
+              <div className="flex items-center justify-center gap-3 pt-3">
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="flex-1 rounded-2xl bg-gray-100 py-3 text-xs font-bold text-gray-700 hover:bg-gray-200"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={handleConfirmDeleteAccount}
+                  className="flex-1 rounded-2xl bg-red-600 py-3 text-xs font-black text-white shadow-lg shadow-red-600/25 hover:bg-red-700 disabled:opacity-50"
+                >
+                  {isDeleting ? 'جاري الحذف...' : 'نعم، احذف الحساب'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Clean Tracking Search Input Bar (No Outer Frame, Matching 'طلباتي' Size) */}
       <form onSubmit={handleSearchOrder} className="relative flex items-center w-full">
@@ -712,27 +896,143 @@ export const ProfilePage: React.FC = () => {
         </div>
       )}
 
+      {/* ============================================================ */}
       {/* ADD / EDIT ADDRESS MODAL */}
-      <ProfileAddressModal
-        isOpen={isAddAddressOpen}
-        onClose={() => setIsAddressModalOpen(false)}
-        editingAddressId={editingAddressId}
-        addrName={addrName}
-        setAddrName={setAddrName}
-        addrCity={addrCity}
-        setAddrCity={setAddrCity}
-        addrStreet={addrStreet}
-        setAddrStreet={setAddrStreet}
-        addrBuilding={addrBuilding}
-        setAddrBuilding={setAddrBuilding}
-        addrPhone={addrPhone}
-        setAddrPhone={setAddrPhone}
-        addrNotes={addrNotes}
-        setAddrNotes={setAddrNotes}
-        addrIsDefault={addrIsDefault}
-        setAddrIsDefault={setAddrIsDefault}
-        handleSaveAddress={handleSaveAddress}
-      />
+      {/* ============================================================ */}
+      <AnimatePresence>
+        {isAddAddressOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl space-y-4 text-right"
+            >
+              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
+                  <MapPin size={18} className="text-orange-500" />
+                  {editingAddressId ? 'تعديل عنوان التوصيل' : 'إضافة موقع / عنوان جديد 📍'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsAddressModalOpen(false)}
+                  className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveAddress} className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-gray-600">اسم الموقع (مثال: المنزل، العمل)</label>
+                    <input
+                      type="text"
+                      required
+                      value={addrName}
+                      onChange={e => setAddrName(e.target.value)}
+                      placeholder="المنزل"
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 p-3 text-sm font-bold text-gray-900 outline-none focus:border-orange-500 focus:bg-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-gray-600">المدينة</label>
+                    <input
+                      type="text"
+                      required
+                      value={addrCity}
+                      onChange={e => setAddrCity(e.target.value)}
+                      placeholder="الرياض، جدة، دمشق..."
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 p-3 text-sm font-bold text-gray-900 outline-none focus:border-orange-500 focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-gray-600">اسم الحي والشارع التفصيلي *</label>
+                  <input
+                    type="text"
+                    required
+                    value={addrStreet}
+                    onChange={e => setAddrStreet(e.target.value)}
+                    placeholder="حي الياسمين، شارع أنس بن مالك"
+                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 p-3 text-sm font-bold text-gray-900 outline-none focus:border-orange-500 focus:bg-white"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-gray-600">رقم المبنى / الشقة (اختياري)</label>
+                    <input
+                      type="text"
+                      value={addrBuilding}
+                      onChange={e => setAddrBuilding(e.target.value)}
+                      placeholder="مبنى 12، شقة 4"
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 p-3 text-sm font-bold text-gray-900 outline-none focus:border-orange-500 focus:bg-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-gray-600">رقم جوال للتوصيل</label>
+                    <input
+                      type="tel"
+                      value={addrPhone}
+                      onChange={e => setAddrPhone(e.target.value)}
+                      placeholder="0901234567"
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50 p-3 text-sm font-bold text-gray-900 outline-none focus:border-orange-500 focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-gray-600">ملاحظات سائق التوصيل (اختياري)</label>
+                  <input
+                    type="text"
+                    value={addrNotes}
+                    onChange={e => setAddrNotes(e.target.value)}
+                    placeholder="بجانب المسجد، الاتصال قبل الوصول بـ 10 دقائق..."
+                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 p-3 text-sm font-bold text-gray-900 outline-none focus:border-orange-500 focus:bg-white"
+                  />
+                </div>
+
+                <div className="pt-1">
+                  <label className="flex items-center gap-2 text-xs font-bold text-gray-600 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={addrIsDefault}
+                      onChange={e => setAddrIsDefault(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                    />
+                    <span>تعيين هذا العنوان كعنوان توصيل افتراضي</span>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddressModalOpen(false)}
+                    className="rounded-2xl bg-gray-100 px-5 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-200"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="submit"
+                    className="rounded-2xl bg-orange-500 px-6 py-2.5 text-xs font-black text-white shadow-md shadow-orange-500/20 hover:bg-orange-600"
+                  >
+                    {editingAddressId ? 'تحديث العنوان' : 'حفظ العنوان 📍'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ============================================================ */}
       {/* SUPPORT & ASSISTANCE TAB */}

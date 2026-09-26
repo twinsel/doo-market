@@ -53,7 +53,7 @@ interface ShopContextType {
   addReview: (productId: string, rating: number, comment: string, userName?: string) => void;
   login: (user: Partial<User>) => void;
   logout: () => void;
-  deleteUser: (identifier: string, userEmailOpt?: string) => void;
+  deleteUser: (identifier: string) => void;
   clearAllUsers: () => void;
   updateSettings: (settings: Partial<StoreSettings>) => void;
   addProduct: (product: Omit<Product, 'id'>) => void;
@@ -149,16 +149,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const dbOrders = await fetchOrdersFromSupabase().catch(() => null);
       if (dbOrders) {
-        setData(prev => {
-          const merged = [...dbOrders];
-          (prev.orders || []).forEach(localOrder => {
-            if (!merged.some(o => o.id === localOrder.id)) {
-              merged.unshift(localOrder);
-              syncOrderToSupabase(localOrder);
-            }
-          });
-          return { ...prev, orders: merged };
-        });
+        setData(prev => ({ ...prev, orders: dbOrders }));
       }
 
       const dbUsers = await fetchUsersFromSupabase().catch(() => null);
@@ -192,40 +183,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shop_state' }, () => {
         refreshShopState();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
-        refreshShopState();
-      })
-      .subscribe();
-
-    // Listen to real-time order status changes across all clients (~50ms latency)
-    const ordersChannel = supabase
-      .channel('realtime_orders_status_channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, async () => {
-        const dbOrders = await fetchOrdersFromSupabase().catch(() => null);
-        if (dbOrders && dbOrders.length > 0) {
-          setData(prev => ({ ...prev, orders: dbOrders }));
-        }
-      })
-      .on('broadcast', { event: 'order_status_changed' }, (payload: any) => {
-        const { orderId, status, trackingSteps, updatedOrder } = payload?.payload || {};
-        if (orderId && status) {
-          setData(prev => {
-            const existing = prev.orders || [];
-            const idx = existing.findIndex(o => o.id === orderId);
-            if (idx > -1) {
-              const updated = [...existing];
-              updated[idx] = {
-                ...updated[idx],
-                status,
-                trackingSteps: trackingSteps || updated[idx].trackingSteps,
-                ...(updatedOrder || {})
-              };
-              return { ...prev, orders: updated };
-            }
-            return prev;
-          });
-        }
-      })
       .subscribe();
 
     // Listen to real-time user deletion events (kicks out deleted user instantly)
@@ -255,7 +212,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => {
       supabase.removeChannel(shopStateChannel);
-      supabase.removeChannel(ordersChannel);
       supabase.removeChannel(deletionChannel);
     };
   }, [refreshShopState]);
@@ -284,15 +240,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
-  const [deletedUserKeys, setDeletedUserKeys] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('doo_deleted_users_v6');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_USERS_LIST, JSON.stringify(registeredUsers));
@@ -314,13 +261,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Failed to save shop data:', e);
     }
   }, [data]);
-
-  // Sync current user to Supabase DB
-  useEffect(() => {
-    if (currentUser && !currentUser.id?.startsWith('guest-') && !isLoggingOut) {
-      syncUserToSupabase(currentUser).catch(() => {});
-    }
-  }, [currentUser, isLoggingOut]);
 
   // Cart reservation cleanup
   useEffect(() => {
@@ -776,73 +716,42 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     syncUserToSupabase({ ...newUser, isOnline: true });
-    setUserOnlineStatus(newUser.id, true, newUser.email);
+    setUserOnlineStatus(newUser.id, true);
     refreshShopState();
   }, [refreshShopState]);
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(() => {
     setIsLoggingOut(true);
     setLogoutMsg(data.settings.logoutMessage || 'جاري تسجيل الخروج... نتمنى أن تكون قد استمتعت بتجربة شراء فريدة');
-    if (currentUser) {
-      await setUserOnlineStatus(currentUser.id, false, currentUser.email);
-      await syncUserToSupabase({ ...currentUser, isOnline: false }).catch(() => {});
-      setRegisteredUsers(prev => prev.map(u => (
-        (u.id === currentUser.id || (u.email && u.email.toLowerCase() === currentUser.email?.toLowerCase()))
-          ? { ...u, isOnline: false }
-          : u
-      )));
+    if (currentUser?.id) {
+      setUserOnlineStatus(currentUser.id, false);
+      syncUserToSupabase({ ...currentUser, isOnline: false });
     }
-    await supabase.auth.signOut().catch(() => {});
-    try {
-      localStorage.removeItem(STORAGE_USER);
-      sessionStorage.clear();
-    } catch {}
-    setCurrentUser(null);
     refreshShopState();
     setTimeout(() => {
+      setCurrentUser(null);
       setIsLoggingOut(false);
     }, (data.settings.logoutDuration || 3) * 1000);
   }, [data.settings.logoutMessage, data.settings.logoutDuration, currentUser, refreshShopState]);
 
-  const deleteUser = useCallback((userIdentifier: string, userEmailOpt?: string) => {
-    if (!userIdentifier && !userEmailOpt) return;
+  const deleteUser = useCallback((userIdentifier: string) => {
+    if (!userIdentifier) return;
 
-    const cleanId = (userIdentifier || '').trim();
+    deleteUserFromSupabase(userIdentifier);
+
     const targetUser = registeredUsers.find(u =>
-      u.id === cleanId || u.email === userIdentifier || u.email === userEmailOpt
-    ) || (currentUser && (currentUser.id === cleanId || currentUser.email === userIdentifier || currentUser.email === userEmailOpt) ? currentUser : null);
+      u.id === userIdentifier || u.email === userIdentifier || u.phone === userIdentifier
+    ) || (currentUser && (currentUser.id === userIdentifier || currentUser.email === userIdentifier) ? currentUser : null);
 
     const userName = targetUser?.name;
     const userPhone = targetUser?.phone;
-    const userEmail = (userEmailOpt || targetUser?.email || (cleanId.includes('@') ? cleanId : '')).trim().toLowerCase();
+    const userEmail = targetUser?.email;
 
-    // 1. Permanent Blacklist
-    setDeletedUserKeys(prev => {
-      const next = [...prev];
-      if (cleanId && !next.includes(cleanId)) next.push(cleanId);
-      if (userEmail && !next.includes(userEmail)) next.push(userEmail);
-      try {
-        localStorage.setItem('doo_deleted_users_v6', JSON.stringify(next));
-      } catch {}
-      return next;
-    });
-
-    // 2. Delete from Supabase
-    deleteUserFromSupabase(cleanId, userEmail);
-
-    // 3. Filter registeredUsers
     setRegisteredUsers(prev => prev.filter(u =>
-      u.id !== cleanId && (!userEmail || u.email?.toLowerCase() !== userEmail)
+      u.id !== userIdentifier &&
+      (!userEmail || u.email !== userEmail) &&
+      (!userPhone || u.phone !== userPhone)
     ));
-
-    // 4. Purge active currentUser
-    if (currentUser && (currentUser.id === cleanId || (userEmail && currentUser.email?.toLowerCase() === userEmail))) {
-      try {
-        localStorage.removeItem(STORAGE_USER);
-        sessionStorage.clear();
-      } catch {}
-      setCurrentUser(null);
-    }
 
     setData(prev => ({
       ...prev,
@@ -855,6 +764,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     clearCart();
     setWishlist([]);
+    setCurrentUser(null);
 
     try {
       localStorage.removeItem(STORAGE_USER);
@@ -958,12 +868,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }));
   }, []);
 
-  // دالة updateOrderStatus المحسّنة والمطورة لحفظ التحديثات بداخل قاعدة بيانات Supabase
+  // دالة updateOrderStatus المحسّنة
   const updateOrderStatus = useCallback((orderId: string, status: Order['status']) => {
-    let orderToSync: Order | null = null;
-
-    setData(prev => {
-      const updatedOrders = (prev.orders || []).map(o => {
+    setData(prev => ({
+      ...prev,
+      orders: (prev.orders || []).map(o => {
         if (o.id === orderId) {
           const statusOrder: Order['status'][] = [
             'pending', 'processing', 'shipped', 'delivering', 'delivered'
@@ -1010,41 +919,16 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return step;
           });
 
-          const updated: Order = {
+          return {
             ...o,
             status,
             trackingSteps: updatedSteps,
             updatedAt: new Date().toISOString()
           };
-
-          orderToSync = updated;
-          return updated;
         }
         return o;
-      });
-
-      return {
-        ...prev,
-        orders: updatedOrders
-      };
-    });
-
-    if (orderToSync) {
-      syncOrderToSupabase(orderToSync);
-      try {
-        const channel = supabase.channel('realtime_orders_status_channel');
-        channel.send({
-          type: 'broadcast',
-          event: 'order_status_changed',
-          payload: {
-            orderId: (orderToSync as Order).id,
-            status: (orderToSync as Order).status,
-            trackingSteps: (orderToSync as Order).trackingSteps,
-            updatedOrder: orderToSync
-          }
-        }).catch(() => {});
-      } catch {}
-    }
+      })
+    }));
   }, []);
 
   const deleteOrder = useCallback((orderId: string) => {
@@ -1052,7 +936,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...prev,
       orders: (prev.orders || []).filter(o => o.id !== orderId)
     }));
-    Promise.resolve(supabase.from('orders').delete().eq('id', orderId)).catch(() => {});
   }, []);
 
   const resetData = useCallback(() => {

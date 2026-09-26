@@ -26,7 +26,7 @@ import {
 import { useShop } from '../../context/ShopContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { fetchUsersFromSupabase, deleteUserFromSupabase, syncUserToSupabase, adminDeleteUser } from '../../services/supabaseService';
+import { fetchUsersFromSupabase, deleteUserFromSupabase } from '../../services/supabaseService';
 import { supabase } from '../../lib/supabase';
 
 // ============================================================
@@ -467,13 +467,10 @@ export const AdminUsersPage: React.FC = () => {
 
   const { registeredUsers, currentUser, cart, wishlist, data, deleteUser, clearAllUsers } = useShop();
 
-  // Load registered users directly from Supabase DB & listen to real-time user status changes
+  // Load registered users directly from Supabase DB & listen to real-time user registrations
   useEffect(() => {
     const loadDbUsers = async () => {
       try {
-        if (currentUser && currentUser.email) {
-          await syncUserToSupabase({ ...currentUser, isOnline: true }).catch(() => {});
-        }
         const fetched = await fetchUsersFromSupabase();
         if (fetched && fetched.length > 0) {
           setRemoteDbUsers(fetched);
@@ -485,28 +482,7 @@ export const AdminUsersPage: React.FC = () => {
 
     loadDbUsers();
 
-    // 1. Instant Realtime Presence Broadcast Channel (~50ms latency across browsers)
-    const presenceChannel = supabase
-      .channel('presence_status_channel')
-      .on('broadcast', { event: 'presence_changed' }, async (payload: any) => {
-        const { userId, email, isOnline } = payload?.payload || {};
-        setRemoteDbUsers(prev => {
-          return prev.map(u => {
-            if ((userId && u.id === userId) || (email && u.email?.toLowerCase() === (email || '').toLowerCase())) {
-              return { ...u, is_online: isOnline, isOnline };
-            }
-            return u;
-          });
-        });
-        const fetched = await fetchUsersFromSupabase().catch(() => null);
-        if (fetched && fetched.length > 0) {
-          setRemoteDbUsers(fetched);
-        }
-      })
-      .subscribe();
-
-    // 2. Postgres DB Changes Channel
-    const dbChannel = supabase
+    const channel = supabase
       .channel('realtime_admin_users_v3')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, async () => {
         const fetched = await fetchUsersFromSupabase().catch(() => null);
@@ -516,72 +492,14 @@ export const AdminUsersPage: React.FC = () => {
       })
       .subscribe();
 
-    // 3. Instant Realtime User Deletion & Update Broadcast Channel
-    const deletionChannel = supabase
-      .channel('realtime_user_deletion_channel')
-      .on('broadcast', { event: 'user_deleted' }, async (payload: any) => {
-        const data = payload?.payload || payload || {};
-        const deletedId = (data.userId || data.id || '').trim();
-        const deletedEmail = (data.email || '').trim().toLowerCase();
-
-        // Filter and remove deleted user card from React UI immediately (~10ms)
-        setRemoteDbUsers(prev => prev.filter(u =>
-          (deletedId ? u.id !== deletedId : true) &&
-          (deletedEmail ? u.email?.toLowerCase() !== deletedEmail : true)
-        ));
-
-        // Save to permanent blacklist so card can never reappear
-        if (deletedId || deletedEmail) {
-          try {
-            const saved = localStorage.getItem('doo_deleted_users_v6');
-            const list: string[] = saved ? JSON.parse(saved) : [];
-            if (deletedId && !list.includes(deletedId)) list.push(deletedId);
-            if (deletedEmail && !list.includes(deletedEmail)) list.push(deletedEmail);
-            localStorage.setItem('doo_deleted_users_v6', JSON.stringify(list));
-          } catch {}
-        }
-
-        const fetched = await fetchUsersFromSupabase().catch(() => null);
-        if (fetched) {
-          setRemoteDbUsers(fetched);
-        }
-      })
-      .on('broadcast', { event: 'user_updated' }, async () => {
-        const fetched = await fetchUsersFromSupabase().catch(() => null);
-        if (fetched) {
-          setRemoteDbUsers(fetched);
-        }
-      })
-      .subscribe();
-
-    // 4. Fast 2-second Background Status Poller (Guarantees zero manual refresh needed)
-    const interval = setInterval(async () => {
-      const fetched = await fetchUsersFromSupabase().catch(() => null);
-      if (fetched) {
-        setRemoteDbUsers(fetched);
-      }
-    }, 2000);
-
     return () => {
-      supabase.removeChannel(presenceChannel);
-      supabase.removeChannel(dbChannel);
-      supabase.removeChannel(deletionChannel);
-      clearInterval(interval);
+      supabase.removeChannel(channel);
     };
   }, []);
 
   const allUsers = useMemo(() => {
     const combined: any[] = [];
     const addedKeys = new Set<string>();
-
-    const deletedKeysSaved = (() => {
-      try {
-        const saved = localStorage.getItem('doo_deleted_users_v6');
-        return saved ? (JSON.parse(saved) as string[]) : [];
-      } catch {
-        return [];
-      }
-    })();
 
     // Single source of truth: remoteDbUsers if loaded, else registeredUsers
     const baseList = remoteDbUsers.length > 0 ? remoteDbUsers : (registeredUsers || []);
@@ -592,22 +510,6 @@ export const AdminUsersPage: React.FC = () => {
 
     listToProcess.forEach((uItem: any) => {
       const u = uItem || {};
-      const uId = u.id || '';
-      const uEmail = (u.email || '').toLowerCase();
-
-      // Blacklist filter: Permanently skip deleted users
-      if (
-        (uId && deletedKeysSaved.includes(uId)) ||
-        (uEmail && deletedKeysSaved.includes(uEmail))
-      ) {
-        return;
-      }
-
-      // Skip anonymous guest users from admin users management
-      if (uId.startsWith('guest-') || u.name === 'زائر المتجر' || u.role === 'guest') {
-        return;
-      }
-
       const key = (u.email || u.id || '').toLowerCase();
 
       if (key && !addedKeys.has(key)) {
@@ -618,8 +520,8 @@ export const AdminUsersPage: React.FC = () => {
           (o.customer?.phone && u.phone && o.customer.phone === u.phone)
         );
 
-        // Real-time presence online status based strictly on active database record
-        const userIsOnline = (u.isOnline === true || u.is_online === true);
+        // Real-time presence online status based strictly on active database session
+        const userIsOnline = isSelf ? true : (u.isOnline === true || u.is_online === true);
 
         combined.push({
           id: u.id || 'usr-' + Math.random(),
@@ -663,29 +565,19 @@ export const AdminUsersPage: React.FC = () => {
     const targetId = userToDelete.id;
     const targetEmail = userToDelete.email;
 
-    if (!targetId) {
-      alert('معرف المستخدم غير صالح');
-      return;
-    }
-
-    const result = await adminDeleteUser(targetId);
-
-    if (!result.ok) {
-      alert(result.error || 'فشل حذف المستخدم');
-      return;
-    }
-
     // 1. Instantly filter and remove card from React UI State (0.01s instant update)
     setRemoteDbUsers(prev => prev.filter(u =>
       u.id !== targetId &&
-      (!targetEmail || u.email?.toLowerCase() !== targetEmail?.toLowerCase())
+      (!targetEmail || u.email !== targetEmail)
     ));
 
-    // 2. Delete and blacklist via ShopContext
-    deleteUser(targetId, targetEmail);
+    // 2. Delete from ShopContext
+    deleteUser(targetId || targetEmail);
 
     setUserToDelete(null);
-    if (selectedUser?.id === targetId) setSelectedUser(null);
+
+    // 3. Delete online from Supabase DB in background
+    await deleteUserFromSupabase(targetId, targetEmail);
   };
 
   return (

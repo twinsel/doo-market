@@ -22,7 +22,11 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShop } from '../context/ShopContext';
-import { AuthService } from '../services/auth.service';
+import {
+  signUpUserWithSupabase,
+  signInUserWithSupabase,
+  sendPasswordResetEmail
+} from '../services/supabaseService';
 
 export const AuthPage: React.FC = () => {
   const navigate = useNavigate();
@@ -84,13 +88,14 @@ export const AuthPage: React.FC = () => {
     setLoginError('');
     setIsLoading(true);
 
-    try {
-      const user = await AuthService.login(loginEmail, loginPassword);
-      login(user);
+    const result = await signInUserWithSupabase(loginEmail, loginPassword);
+
+    if (result.ok && result.user) {
+      login(result.user);
       setIsLoading(false);
       navigate('/');
-    } catch (err: any) {
-      setLoginError(err.message || 'كلمة المرور أو البريد الإلكتروني غير صحيح');
+    } else {
+      setLoginError(result.error || 'كلمة المرور أو البريد الإلكتروني غير صحيح');
       setIsLoading(false);
     }
   };
@@ -104,8 +109,8 @@ export const AuthPage: React.FC = () => {
       return;
     }
 
-    if (regPassword.length < 8) {
-      setRegError('كلمة المرور يجب أن تكون 8 أحرف على الأقل وتتضمن حرفاً كبيراً ورقماً');
+    if (regPassword.length < 6) {
+      setRegError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
       return;
     }
 
@@ -116,25 +121,26 @@ export const AuthPage: React.FC = () => {
 
     setIsLoading(true);
 
-    try {
-      const user = await AuthService.register({
-        name: regName,
-        email: regEmail,
-        phone: regPhone,
-        password: regPassword,
-        confirmPassword: regConfirmPassword,
-        acceptTerms: agreedTerms,
-        receiveUpdates: false,
-      });
+    const isAdmin = regEmail.toLowerCase().includes('admin') ||
+                    regEmail.toLowerCase().includes('مدير');
 
-      login(user);
+    const result = await signUpUserWithSupabase(
+      regEmail,
+      regPassword,
+      regName,
+      regPhone,
+      isAdmin ? 'admin' : 'buyer'
+    );
+
+    if (result.ok && result.user) {
+      login(result.user);
       setIsLoading(false);
       setShowSuccess(true);
       setTimeout(() => {
         navigate('/');
       }, 1200);
-    } catch (err: any) {
-      setRegError(err.message || 'تعذر إنشاء الحساب، يرجى المحاولة لاحقاً');
+    } else {
+      setRegError(result.error || 'تعذر إنشاء الحساب، يرجى المحاولة لاحقاً');
       setIsLoading(false);
     }
   };
@@ -145,14 +151,9 @@ export const AuthPage: React.FC = () => {
     setIsResetLoading(true);
     setResetMessage('');
 
-    try {
-      await AuthService.resetPassword(resetEmail.trim());
-      setResetMessage('تم إرسال تعليمات إعادة تعيين كلمة المرور إلى بريدك الإلكتروني بنجاح ✨');
-    } catch (err: any) {
-      setResetMessage(err.message || 'تعذر إرسال البريد، يرجى التحقق من العنوان والربط.');
-    } finally {
-      setIsResetLoading(false);
-    }
+    const res = await sendPasswordResetEmail(resetEmail.trim());
+    setIsResetLoading(false);
+    setResetMessage(res.message);
   };
 
   const handleGuestEntry = async () => {
@@ -177,7 +178,7 @@ export const AuthPage: React.FC = () => {
       <div className="flex-1 flex flex-col justify-between p-6 sm:p-10 lg:p-12 max-w-xl mx-auto w-full">
         {/* Top Header Logo (Mobile Only) */}
         <div className="lg:hidden flex items-center justify-between mb-8">
-          <Link to={isAuthenticated && !(currentUser?.id?.startsWith('guest-')) ? '/home' : '/auth'} className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-md font-black">
               دُو
             </div>
@@ -599,20 +600,14 @@ export const AuthPage: React.FC = () => {
         <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl pointer-events-none" />
 
         {/* Top Branding Badge (Static Header with Orange Square Logo) */}
-        <button
-          type="button"
-          onClick={handleGuestEntry}
-          className="relative z-10 flex items-center gap-3 text-right hover:opacity-90 transition-all cursor-pointer group active:scale-95"
-          title="اضغط للدخول المباشر إلى المتجر"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-orange-600 font-black text-xl shadow-md border border-white/20 shrink-0 group-hover:scale-105 transition-transform">
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-orange-600 font-black text-xl shadow-md border border-white/20 shrink-0">
             دُو
           </div>
           <div className="text-right">
             <h3 className="text-base font-black text-white leading-none">{data.settings.siteName || 'دُو ماركت'}</h3>
-            <span className="text-[10px] text-orange-100 font-bold block mt-1 hover:underline">اضغط للدخول المباشر للمتجر ⚡</span>
           </div>
-        </button>
+        </div>
 
         {/* Campaign Welcome Text (Identical to user's image) */}
         <div className="relative z-10 my-4 space-y-2 text-right border-y border-white/15 py-4">
